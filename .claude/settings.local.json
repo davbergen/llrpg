@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(cp /tmp/vite-scaffold/app/src/assets/react.svg \"C:/Users/david/dev/Language RPG/src/assets/react.svg\")",
+      "Bash(cp /tmp/vite-scaffold/app/public/vite.svg \"C:/Users/david/dev/Language RPG/public/vite.svg\")",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(Get-ChildItem \"c:\\\\Users\\\\david\\\\dev\\\\Language RPG\" -Depth 0)",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\david\\\\dev\\\\Language RPG\"; npx tsc --noEmit 2>&1; Write-Host \"TSC exit: $LASTEXITCODE\")",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\david\\\\dev\\\\Language RPG\"; npm run lint 2>&1; Write-Host \"Lint exit: $LASTEXITCODE\")",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\david\\\\dev\\\\Language RPG\"; npm run build 2>&1; Write-Host \"Build exit: $LASTEXITCODE\")",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}
