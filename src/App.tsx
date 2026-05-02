@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Hero, ScreenName, GameState, Tweaks } from './types';
+import type { AbilityTier, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadSave, saveSave, wipeSave } from './save';
+import { ABILITIES } from './game/dungeon';
+import { applyAbility, clampPlayerHp } from './game/combat-engine';
 import { NavBar } from './components/rpg';
 import Onboarding from './screens/Onboarding';
 import Home from './screens/Home';
@@ -27,6 +29,7 @@ function App() {
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [transition, setTransition] = useState(false);
   const [showTweaks, setShowTweaks] = useState(false);
+  const [pendingAbility, setPendingAbility] = useState<AbilityTier | null>(null);
 
   useEffect(() => {
     saveSave({ hero, gameState });
@@ -66,6 +69,46 @@ function App() {
     setHero(newHero);
     navigate('home');
   };
+
+  const handleAbilityChosen = (tier: AbilityTier) => {
+    setPendingAbility(tier);
+    navigate('lesson');
+  };
+
+  const handleLessonComplete = (acc: number) => {
+    if (!pendingAbility) return;
+    const tier = pendingAbility;
+    setGameState((prev) => {
+      if (prev.dungeonState.currentMonsterIndex >= 0) {
+        const result = applyAbility({
+          dungeonState: prev.dungeonState,
+          abilityTier: tier,
+          lessonAccuracy: acc,
+          equipmentDamageBonus: 0,
+        });
+        if (result.monsterDefeated) {
+          // Loot routing lands in slice 6; observe the kill for now.
+          console.log('[combat] monster defeated', {
+            damageDealt: result.damageDealt,
+            dungeonCleared: result.dungeonCleared,
+          });
+        }
+        return {
+          ...prev,
+          hp: clampPlayerHp(prev.hp - result.counterDamage),
+          xp: prev.xp + result.xpGained,
+          dungeonState: result.nextDungeonState,
+        };
+      }
+      return prev;
+    });
+    setPendingAbility(null);
+  };
+
+  const lessonQuestionCount =
+    pendingAbility != null
+      ? (ABILITIES.find((a) => a.tier === pendingAbility)?.lessonQuestions ?? 5)
+      : undefined;
 
   // Phone frame dimensions
   const frameW = 390;
@@ -161,8 +204,18 @@ function App() {
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
               >
                 {screen === 'home' && <Home {...screenProps} />}
-                {screen === 'dungeon' && <Dungeon {...screenProps} />}
-                {screen === 'lesson' && <Lesson {...screenProps} />}
+                {screen === 'dungeon' && (
+                  <Dungeon {...screenProps} onAbilityChosen={handleAbilityChosen} />
+                )}
+                {screen === 'lesson' && (
+                  <Lesson
+                    {...screenProps}
+                    questionCount={lessonQuestionCount}
+                    onComplete={pendingAbility ? handleLessonComplete : undefined}
+                    completeDestination={pendingAbility ? 'dungeon' : 'home'}
+                    completeLabel={pendingAbility ? '⚔ BACK TO DUNGEON' : '🏠 HOME'}
+                  />
+                )}
                 {screen === 'loot' && <Loot {...screenProps} />}
                 {screen === 'profile' && <Profile {...screenProps} />}
               </div>

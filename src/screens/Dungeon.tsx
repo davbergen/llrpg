@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ScreenProps } from '../types';
+import type { AbilityTier, ScreenProps } from '../types';
 import { ABILITIES, DUNGEON_MONSTERS, DUNGEON_NAME } from '../game/dungeon';
 import { RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from '../components/rpg';
 
@@ -9,8 +9,13 @@ const tierColor: Record<string, string> = {
   strong: RPG.red,
 };
 
-const Dungeon: React.FC<ScreenProps> = ({ gameState, setScreen }) => {
+interface DungeonProps extends ScreenProps {
+  onAbilityChosen?: (tier: AbilityTier) => void;
+}
+
+const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbilityChosen }) => {
   const { dungeonState } = gameState;
+  const playerHpPct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
   const monster = DUNGEON_MONSTERS[dungeonState.currentMonsterIndex];
   const cleared = dungeonState.currentMonsterIndex >= DUNGEON_MONSTERS.length;
 
@@ -120,6 +125,34 @@ const Dungeon: React.FC<ScreenProps> = ({ gameState, setScreen }) => {
         </div>
       </PixelPanel>
 
+      <PixelPanel dark style={{ padding: '10px 12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.green }}>
+            {hero.name.toUpperCase()} HP
+          </span>
+          <span style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.textDim }}>
+            {gameState.hp}/{gameState.maxHp}
+          </span>
+        </div>
+        <div
+          style={{
+            height: 10,
+            background: '#0a0a14',
+            border: `2px solid ${RPG.border}`,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              width: `${playerHpPct}%`,
+              height: '100%',
+              background: RPG.green,
+              transition: 'width 0.4s',
+            }}
+          />
+        </div>
+      </PixelPanel>
+
       <PixelHeader size={10}>⚔ CHOOSE ABILITY</PixelHeader>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {ABILITIES.map((ab) => {
@@ -127,9 +160,7 @@ const Dungeon: React.FC<ScreenProps> = ({ gameState, setScreen }) => {
           return (
             <button
               key={ab.id}
-              onClick={() => {
-                /* inert in slice 2 */
-              }}
+              onClick={() => onAbilityChosen?.(ab.tier)}
               style={{
                 ...pixelBorderStyle(color, RPG.panelDark),
                 padding: '12px 14px',
