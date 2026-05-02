@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
+import { loadSave, saveSave, wipeSave } from './save';
 import { NavBar } from './components/rpg';
 import Onboarding from './screens/Onboarding';
 import Home from './screens/Home';
@@ -18,12 +19,24 @@ import {
 } from './tweaks';
 
 function App() {
-  const [screen, setScreen] = useState<ScreenName>('home');
-  const [hero, setHero] = useState<Hero | null>(null);
-  const [gameState, setGameState] = useState<GameState>(INITIAL_STATE);
+  const initialSave = useRef(loadSave()).current;
+  const [screen, setScreen] = useState<ScreenName>(initialSave?.hero ? 'home' : 'onboarding');
+  const [hero, setHero] = useState<Hero | null>(initialSave?.hero ?? null);
+  const [gameState, setGameState] = useState<GameState>(initialSave?.gameState ?? INITIAL_STATE);
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [transition, setTransition] = useState(false);
   const [showTweaks, setShowTweaks] = useState(false);
+
+  useEffect(() => {
+    saveSave({ hero, gameState });
+  }, [hero, gameState]);
+
+  const handleWipeSave = () => {
+    wipeSave();
+    setHero(null);
+    setGameState(INITIAL_STATE);
+    setScreen('onboarding');
+  };
 
   const setTweak = <K extends keyof Tweaks>(key: K, value: Tweaks[K]) => {
     setTweaks((prev) => ({ ...prev, [key]: value }));
@@ -215,6 +228,9 @@ function App() {
               navigate('onboarding');
             }}
           />
+        </TweakSection>
+        <TweakSection label="Save">
+          <TweakButton label="Wipe save" onClick={handleWipeSave} />
         </TweakSection>
       </TweaksPanel>
     </>
