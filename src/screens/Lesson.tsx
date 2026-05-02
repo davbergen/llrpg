@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { ScreenProps } from '../types';
+import type { ScreenName, ScreenProps } from '../types';
 import { RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from '../components/rpg';
 import {
   accuracy,
@@ -16,6 +16,8 @@ const DEFAULT_QUESTION_COUNT = 5;
 interface LessonProps extends ScreenProps {
   questionCount?: number;
   onComplete?: (accuracy: number) => void;
+  completeDestination?: ScreenName;
+  completeLabel?: string;
 }
 
 type Phase = 'question' | 'feedback' | 'complete';
@@ -24,6 +26,8 @@ const Lesson: React.FC<LessonProps> = ({
   setScreen,
   questionCount = DEFAULT_QUESTION_COUNT,
   onComplete,
+  completeDestination = 'home',
+  completeLabel = '🏠 HOME',
 }) => {
   const [state, setState] = useState<LessonState>(() =>
     createLesson({ pool: VOCAB_POOL, questionCount }),
@@ -102,8 +106,12 @@ const Lesson: React.FC<LessonProps> = ({
             />
           </div>
         </PixelPanel>
-        <PixelButton onClick={() => setScreen('home')} variant="grey" style={{ width: '100%' }}>
-          🏠 HOME
+        <PixelButton
+          onClick={() => setScreen(completeDestination)}
+          variant="grey"
+          style={{ width: '100%' }}
+        >
+          {completeLabel}
         </PixelButton>
       </div>
     );
