@@ -6,6 +6,9 @@ import type {
 } from '../types';
 import { ABILITIES, DUNGEON_MONSTERS } from './dungeon';
 
+export const KILL_XP_REGULAR = 50;
+export const KILL_XP_BOSS = 200;
+
 export interface ApplyAbilityInput {
   dungeonState: DungeonState;
   abilityTier: AbilityTier;
@@ -13,6 +16,7 @@ export interface ApplyAbilityInput {
   equipmentDamageBonus: number;
   now?: number;
   rollLoot?: (monster: Monster) => InventoryItem[];
+  rollGold?: (monster: Monster) => number;
 }
 
 export interface ApplyAbilityResult {
@@ -22,6 +26,7 @@ export interface ApplyAbilityResult {
   monsterDefeated: boolean;
   dungeonCleared: boolean;
   lootDrops: InventoryItem[];
+  goldGained: number;
   xpGained: number;
   lastAbilityUsedAt: number;
 }
@@ -40,6 +45,7 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
     equipmentDamageBonus,
     now = Date.now(),
     rollLoot,
+    rollGold,
   } = input;
 
   if (dungeonState.currentMonsterIndex >= DUNGEON_MONSTERS.length) {
@@ -62,7 +68,8 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
 
   const counterDamage = monsterDefeated ? 0 : monster.counterDamage;
   const lootDrops = monsterDefeated && rollLoot ? rollLoot(monster) : [];
-  const xpGained = damageDealt;
+  const goldGained = monsterDefeated && rollGold ? rollGold(monster) : 0;
+  const xpGained = monsterDefeated ? (monster.isBoss ? KILL_XP_BOSS : KILL_XP_REGULAR) : 0;
 
   const nextDungeonState: DungeonState = {
     ...dungeonState,
@@ -80,6 +87,7 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
     monsterDefeated,
     dungeonCleared,
     lootDrops,
+    goldGained,
     xpGained,
     lastAbilityUsedAt: now,
   };

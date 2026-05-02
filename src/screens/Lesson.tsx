@@ -13,9 +13,15 @@ import { VOCAB_POOL } from '../game/vocab';
 
 const DEFAULT_QUESTION_COUNT = 5;
 
+export interface LessonResult {
+  accuracy: number;
+  correctCount: number;
+  totalCount: number;
+}
+
 interface LessonProps extends ScreenProps {
   questionCount?: number;
-  onComplete?: (accuracy: number) => void;
+  onComplete?: (result: LessonResult) => void;
   completeDestination?: ScreenName;
   completeLabel?: string;
 }
@@ -56,9 +62,16 @@ const Lesson: React.FC<LessonProps> = ({
     setLastChoice(null);
     if (isComplete(next)) {
       const acc = accuracy(next);
-      // Debug entry point — combat hookup is the next slice
-      console.log('[lesson] complete; accuracy =', acc);
-      onComplete?.(acc);
+      const correctCount = next.answers.filter((a) => a.correct).length;
+      if (onComplete) {
+        // Parent owns the post-lesson flow (combat / loot routing).
+        onComplete({
+          accuracy: acc,
+          correctCount,
+          totalCount: next.questions.length,
+        });
+        return;
+      }
       setPhase('complete');
       return;
     }
