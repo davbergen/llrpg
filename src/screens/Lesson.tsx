@@ -34,30 +34,30 @@ const Lesson: React.FC<LessonProps> = ({
   const q = currentQuestion(state);
   const total = state.questions.length;
   const answered = state.answers.length;
-  const progress = answered / total;
-  const lastAnswer = state.answers[state.answers.length - 1];
+  const isLastQuestion = answered === total - 1;
+  const progress = (answered + (phase === 'feedback' ? 1 : 0)) / total;
+  const wasCorrect = phase === 'feedback' && q != null && lastChoice === q.correct;
   const finalAccuracy = useMemo(() => accuracy(state), [state]);
 
   const handleChoose = (choice: string) => {
     if (phase !== 'question' || !q) return;
-    const next = answer(state, choice);
-    setState(next);
     setLastChoice(choice);
+    setPhase('feedback');
+  };
+
+  const handleNext = () => {
+    if (lastChoice === null || !q) return;
+    const next = answer(state, lastChoice);
+    setState(next);
+    setLastChoice(null);
     if (isComplete(next)) {
       const acc = accuracy(next);
       // Debug entry point — combat hookup is the next slice
       console.log('[lesson] complete; accuracy =', acc);
       onComplete?.(acc);
-    }
-    setPhase('feedback');
-  };
-
-  const handleNext = () => {
-    if (isComplete(state)) {
       setPhase('complete');
       return;
     }
-    setLastChoice(null);
     setPhase('question');
   };
 
@@ -123,7 +123,7 @@ const Lesson: React.FC<LessonProps> = ({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: RPG.textDim }}>
-          {Math.min(answered + (phase === 'question' ? 1 : 0), total)}/{total}
+          {answered + 1}/{total}
         </div>
       </div>
 
@@ -218,10 +218,10 @@ const Lesson: React.FC<LessonProps> = ({
       {phase === 'feedback' && (
         <PixelButton
           onClick={handleNext}
-          variant={lastAnswer?.correct ? 'green' : 'gold'}
+          variant={wasCorrect ? 'green' : 'gold'}
           style={{ width: '100%' }}
         >
-          {isComplete(state) ? '🎉 FINISH' : '▶ NEXT'}
+          {isLastQuestion ? '🎉 FINISH' : '▶ NEXT'}
         </PixelButton>
       )}
     </div>
