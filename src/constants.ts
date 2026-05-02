@@ -1,4 +1,5 @@
-import type { GameState, Tweaks } from './types';
+import type { Equipment, GameState, Tweaks } from './types';
+import { initialDungeonState } from './game/dungeon';
 
 export const TWEAK_DEFAULTS: Tweaks = {
   accentColor: '#e6a817',
@@ -8,21 +9,24 @@ export const TWEAK_DEFAULTS: Tweaks = {
   heroName: '',
 };
 
+export const EMPTY_EQUIPMENT: Equipment = {
+  head: null,
+  chest: null,
+  legs: null,
+};
+
 export const INITIAL_STATE: GameState = {
-  hp: 80,
+  hp: 100,
   maxHp: 100,
   mp: 55,
   maxMp: 80,
-  xp: 340,
-  maxXp: 500,
-  level: 4,
-  gold: 85,
-  streak: 12,
-  questProgress: { daily1: 4, daily2: 2, party1: 18 },
-  partyMembers: [
-    { name: 'Yuki', classType: 'mage' },
-    { name: 'Riku', classType: 'warrior' },
-    { name: 'Sora', classType: 'rogue' },
-  ],
+  xp: 0,
+  maxXp: 100,
+  level: 1,
+  gold: 0,
+  streak: 0,
+  questProgress: {},
+  partyMembers: [],
   inventory: [],
+  dungeonState: initialDungeonState(),
 };

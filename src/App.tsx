@@ -5,6 +5,7 @@ import { loadSave, saveSave, wipeSave } from './save';
 import { NavBar } from './components/rpg';
 import Onboarding from './screens/Onboarding';
 import Home from './screens/Home';
+import Dungeon from './screens/Dungeon';
 import Lesson from './screens/Lesson';
 import Loot from './screens/Loot';
 import Profile from './screens/Profile';
@@ -75,7 +76,13 @@ function App() {
     1.2,
   );
 
-  const screenProps = { hero: hero!, gameState, setGameState, setScreen: navigate };
+  const screenProps = {
+    hero: hero!,
+    setHero,
+    gameState,
+    setGameState,
+    setScreen: navigate,
+  };
 
   return (
     <>
@@ -154,6 +161,7 @@ function App() {
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
               >
                 {screen === 'home' && <Home {...screenProps} />}
+                {screen === 'dungeon' && <Dungeon {...screenProps} />}
                 {screen === 'lesson' && <Lesson {...screenProps} />}
                 {screen === 'loot' && <Loot {...screenProps} />}
                 {screen === 'profile' && <Profile {...screenProps} />}
@@ -218,6 +226,7 @@ function App() {
         </TweakSection>
         <TweakSection label="Quick Nav">
           <TweakButton label="→ Home" onClick={() => navigate('home')} />
+          <TweakButton label="→ Dungeon" onClick={() => navigate('dungeon')} />
           <TweakButton label="→ Lesson" onClick={() => navigate('lesson')} />
           <TweakButton label="→ Loot" onClick={() => navigate('loot')} />
           <TweakButton label="→ Profile" onClick={() => navigate('profile')} />
