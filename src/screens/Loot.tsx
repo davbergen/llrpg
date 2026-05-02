@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import type { ScreenProps, InventoryItem, ItemRarity } from '../types';
+import React from 'react';
+import type { InventoryItem, ItemRarity, ScreenProps } from '../types';
 import {
   RPG,
   pixelBorderStyle,
@@ -9,62 +9,20 @@ import {
   ItemIcon,
 } from '../components/rpg';
 
-const lootPool: InventoryItem[] = [
-  {
-    id: 'iron_sword',
-    name: 'Iron Katana',
-    type: 'sword',
-    rarity: 'common',
-    jp: '鉄の刀',
-    desc: '+5 ATK. The blade of a diligent student.',
-    bonus: 'ATK +5',
-  },
-  {
-    id: 'vocab_scroll',
-    name: 'Vocab Scroll',
-    type: 'scroll',
-    rarity: 'common',
-    jp: '語彙の巻物',
-    desc: 'Unlock 3 bonus vocab words today.',
-    bonus: 'Vocab +3',
-  },
-  {
-    id: 'mana_potion',
-    name: 'Mana Elixir',
-    type: 'potion',
-    rarity: 'uncommon',
-    jp: 'マナ薬',
-    desc: 'Restores 40 MP. Tastes like matcha.',
-    bonus: 'MP +40',
-  },
-  {
-    id: 'kanji_gem',
-    name: 'Kanji Crystal',
-    type: 'gem',
-    rarity: 'rare',
-    jp: '漢字の宝石',
-    desc: 'A rare gem that glows with ancient meaning.',
-    bonus: 'XP x1.5',
-  },
-  {
-    id: 'ward_shield',
-    name: "Scholar's Ward",
-    type: 'shield',
-    rarity: 'uncommon',
-    jp: '盾',
-    desc: '+8 DEF. Wards off forgotten vocab.',
-    bonus: 'DEF +8',
-  },
-  {
-    id: 'swift_bow',
-    name: 'Swift Bow',
-    type: 'bow',
-    rarity: 'uncommon',
-    jp: '速弓',
-    desc: 'Earn gold faster on timed questions.',
-    bonus: 'Gold +15%',
-  },
-];
+export interface LootReward {
+  monsterName: string;
+  xp: number;
+  gold: number;
+  items: InventoryItem[];
+  leveledUp: boolean;
+  newLevel: number;
+  dungeonCleared: boolean;
+}
+
+interface LootProps extends ScreenProps {
+  reward?: LootReward | null;
+  onContinue?: () => void;
+}
 
 const rarityColors: Record<ItemRarity, { color: string; glow: string; label: string }> = {
   common: { color: '#aaaaaa', glow: '#aaaaaa44', label: 'COMMON' },
@@ -73,221 +31,137 @@ const rarityColors: Record<ItemRarity, { color: string; glow: string; label: str
   epic: { color: '#9b5de5', glow: '#9b5de588', label: 'EPIC' },
 };
 
-type Phase = 'chest' | 'reveal' | 'done';
+const Loot: React.FC<LootProps> = ({ reward, onContinue, setScreen }) => {
+  if (!reward) {
+    return (
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px 16px',
+          gap: 16,
+        }}
+      >
+        <PixelHeader size={12} color={RPG.gold}>
+          NO LOOT YET
+        </PixelHeader>
+        <div
+          style={{
+            fontFamily: "'Courier Prime', monospace",
+            fontSize: 13,
+            color: RPG.textDim,
+            textAlign: 'center',
+            lineHeight: 1.6,
+            maxWidth: 280,
+          }}
+        >
+          Defeat a monster in the dungeon to claim rewards.
+        </div>
+        <PixelButton onClick={() => setScreen('dungeon')} variant="green" style={{ minWidth: 200 }}>
+          ⚔ TO DUNGEON
+        </PixelButton>
+      </div>
+    );
+  }
 
-const Loot: React.FC<ScreenProps> = ({ setGameState, setScreen }) => {
-  const [revealed, setRevealed] = useState<number[]>([]);
-  const [phase, setPhase] = useState<Phase>('chest');
-  const [animating, setAnimating] = useState(false);
-
-  const [lootItems] = useState<InventoryItem[]>(() => {
-    const shuffled = [...lootPool].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 3);
-  });
-
-  const openChest = () => {
-    if (animating) return;
-    setAnimating(true);
-    setPhase('reveal');
-    lootItems.forEach((_, i) => {
-      setTimeout(
-        () => {
-          setRevealed((r) => [...r, i]);
-          if (i === lootItems.length - 1) {
-            setAnimating(false);
-            setPhase('done');
-          }
-        },
-        400 + i * 600,
-      );
-    });
-  };
-
-  const claimAll = () => {
-    setGameState((gs) => ({
-      ...gs,
-      inventory: [...gs.inventory, ...lootItems],
-      gold: gs.gold + 15,
-    }));
-    setScreen('home');
-  };
+  const continueLabel = reward.dungeonCleared ? '🏠 RETURN HOME' : '▶ NEXT MONSTER';
 
   return (
     <div
       style={{
         flex: 1,
+        overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
         padding: '20px 16px',
-        gap: 16,
+        gap: 14,
         background: `radial-gradient(ellipse at center, #1e1a3a 0%, ${RPG.bg} 70%)`,
         alignItems: 'center',
       }}
     >
       <style>{`
-        @keyframes chestShake {
-          0%,100% { transform: rotate(0deg) scale(1); }
-          25% { transform: rotate(-5deg) scale(1.05); }
-          75% { transform: rotate(5deg) scale(1.05); }
-        }
         @keyframes itemReveal {
           from { transform: translateY(20px) scale(0.7); opacity: 0; }
           to   { transform: translateY(0)    scale(1);   opacity: 1; }
         }
-        @keyframes rarityGlow {
-          0%, 100% { box-shadow: 0 0 12px var(--glow); }
-          50%       { box-shadow: 0 0 28px var(--glow); }
-        }
-        @keyframes shimmer {
-          from { background-position: -200% center; }
-          to   { background-position: 200% center; }
-        }
       `}</style>
 
       <PixelHeader size={13} color={RPG.gold}>
-        ⚔ LOOT DROP
+        ⚔ VICTORY!
       </PixelHeader>
 
-      {phase === 'chest' && (
-        <div
+      <div
+        style={{
+          fontFamily: "'Press Start 2P'",
+          fontSize: 9,
+          color: RPG.textDim,
+          textAlign: 'center',
+        }}
+      >
+        DEFEATED: {reward.monsterName.toUpperCase()}
+      </div>
+
+      {reward.leveledUp && (
+        <PixelPanel
+          gold
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 20,
-            flex: 1,
-            justifyContent: 'center',
+            textAlign: 'center',
+            width: '100%',
+            animation: 'itemReveal 0.4s ease',
           }}
         >
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                fontFamily: "'Press Start 2P'",
-                fontSize: 9,
-                color: RPG.textDim,
-                marginBottom: 8,
-              }}
-            >
-              QUEST REWARDS AWAIT!
-            </div>
-            <div
-              style={{
-                fontFamily: "'Courier Prime', monospace",
-                fontSize: 13,
-                color: RPG.textDim,
-                lineHeight: 1.6,
-              }}
-            >
-              You earned loot for completing today's lessons. Open the chest to discover your
-              rewards!
-            </div>
-          </div>
-
           <div
-            onClick={openChest}
             style={{
-              cursor: 'pointer',
-              animation: 'chestShake 2s ease-in-out infinite',
-              filter: `drop-shadow(0 0 20px ${RPG.gold}88)`,
+              fontFamily: "'Press Start 2P'",
+              fontSize: 14,
+              color: RPG.gold,
+              textShadow: `0 0 16px ${RPG.gold}88`,
+              marginBottom: 6,
             }}
           >
-            <div
-              style={{
-                width: 100,
-                height: 90,
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-              }}
-            >
-              <div
-                style={{
-                  width: 100,
-                  height: 40,
-                  background: '#8b5e0a',
-                  border: `3px solid ${RPG.gold}`,
-                  borderBottom: 'none',
-                  position: 'relative',
-                  boxShadow: `0 0 15px ${RPG.gold}44`,
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 8,
-                    left: 8,
-                    right: 8,
-                    height: 6,
-                    background: RPG.gold,
-                    opacity: 0.4,
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 20,
-                    height: 12,
-                    background: RPG.gold,
-                    border: `2px solid #7a4e08`,
-                  }}
-                />
-              </div>
-              <div
-                style={{
-                  width: 100,
-                  height: 50,
-                  background: '#7a4e08',
-                  border: `3px solid ${RPG.gold}`,
-                  borderTop: 'none',
-                  boxShadow: `0 4px 0 #4a2e04`,
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: 10,
-                    left: 8,
-                    right: 8,
-                    height: 6,
-                    background: RPG.gold,
-                    opacity: 0.3,
-                  }}
-                />
-              </div>
-            </div>
+            ✦ LEVEL UP! ✦
           </div>
-
-          <PixelButton onClick={openChest} variant="gold" style={{ minWidth: 200 }}>
-            ✦ OPEN CHEST ✦
-          </PixelButton>
-
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: RPG.gold }}>
-              +15 💰
-            </div>
-            <div style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.textDim }}>
-              GOLD BONUS
-            </div>
+          <div style={{ fontFamily: "'Press Start 2P'", fontSize: 9, color: RPG.text }}>
+            NOW LEVEL {reward.newLevel}
           </div>
-        </div>
+          <div
+            style={{
+              fontFamily: "'Press Start 2P'",
+              fontSize: 7,
+              color: RPG.textDim,
+              marginTop: 6,
+            }}
+          >
+            +10 MAX HP · FULL HEAL
+          </div>
+        </PixelPanel>
       )}
 
-      {(phase === 'reveal' || phase === 'done') && (
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {lootItems.map((item, i) => {
+      <PixelPanel gold style={{ width: '100%' }}>
+        <PixelHeader size={10}>REWARDS</PixelHeader>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <RewardRow label="XP" value={`+${reward.xp}`} color={RPG.gold} />
+          <RewardRow
+            label="Gold"
+            value={`+${reward.gold} 💰`}
+            color={reward.gold > 0 ? '#f0c030' : RPG.textDim}
+          />
+        </div>
+      </PixelPanel>
+
+      {reward.items.length > 0 ? (
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {reward.items.map((item, i) => {
             const rc = rarityColors[item.rarity];
-            const isRevealed = revealed.includes(i);
             return (
               <div
-                key={item.id}
+                key={`${item.id}-${i}`}
                 style={
                   {
-                    animation: isRevealed ? 'itemReveal 0.4s ease forwards' : 'none',
-                    opacity: isRevealed ? 1 : 0,
+                    animation: 'itemReveal 0.4s ease',
                     ['--glow' as string]: rc.glow,
                   } as React.CSSProperties
                 }
@@ -335,17 +209,19 @@ const Loot: React.FC<ScreenProps> = ({ setGameState, setScreen }) => {
                     >
                       {item.jp}
                     </div>
-                    <div
-                      style={{
-                        fontFamily: "'Courier Prime', monospace",
-                        fontSize: 12,
-                        color: RPG.textDim,
-                        lineHeight: 1.5,
-                        marginBottom: 6,
-                      }}
-                    >
-                      {item.desc}
-                    </div>
+                    {item.desc && (
+                      <div
+                        style={{
+                          fontFamily: "'Courier Prime', monospace",
+                          fontSize: 12,
+                          color: RPG.textDim,
+                          lineHeight: 1.5,
+                          marginBottom: 6,
+                        }}
+                      >
+                        {item.desc}
+                      </div>
+                    )}
                     <div
                       style={{
                         fontFamily: "'Press Start 2P'",
@@ -364,33 +240,35 @@ const Loot: React.FC<ScreenProps> = ({ setGameState, setScreen }) => {
               </div>
             );
           })}
-
-          {phase === 'done' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
-              <PixelPanel dark style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: RPG.gold }}>
-                  +3 NEW ITEMS ADDED TO INVENTORY
-                </div>
-                <div
-                  style={{
-                    fontFamily: "'Press Start 2P'",
-                    fontSize: 8,
-                    color: '#f0c030',
-                    marginTop: 6,
-                  }}
-                >
-                  +15 GOLD EARNED
-                </div>
-              </PixelPanel>
-              <PixelButton onClick={claimAll} variant="green" style={{ width: '100%' }}>
-                ✦ CLAIM ALL & CONTINUE
-              </PixelButton>
-            </div>
-          )}
         </div>
+      ) : (
+        <PixelPanel dark style={{ textAlign: 'center', width: '100%' }}>
+          <div style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: RPG.textDim }}>
+            NO ITEM DROP THIS TIME
+          </div>
+        </PixelPanel>
       )}
+
+      <PixelButton
+        onClick={() => (onContinue ? onContinue() : setScreen('dungeon'))}
+        variant="green"
+        style={{ width: '100%', marginTop: 'auto' }}
+      >
+        {continueLabel}
+      </PixelButton>
     </div>
   );
 };
+
+const RewardRow: React.FC<{ label: string; value: string; color: string }> = ({
+  label,
+  value,
+  color,
+}) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <span style={{ fontFamily: "'Press Start 2P'", fontSize: 9, color: RPG.text }}>{label}</span>
+    <span style={{ fontFamily: "'Press Start 2P'", fontSize: 12, color }}>{value}</span>
+  </div>
+);
 
 export default Loot;
