@@ -292,6 +292,17 @@ function App() {
             }}
           />
         </TweakSection>
+        <TweakSection label="Debug">
+          <TweakButton
+            label="Reset daily cap"
+            onClick={() =>
+              setGameState((prev) => ({
+                ...prev,
+                dungeonState: { ...prev.dungeonState, lastAbilityUsedAt: null },
+              }))
+            }
+          />
+        </TweakSection>
         <TweakSection label="Save">
           <TweakButton label="Wipe save" onClick={handleWipeSave} />
         </TweakSection>
