@@ -234,6 +234,7 @@ function App() {
             label="↩ Onboarding"
             onClick={() => {
               setHero(null);
+              setGameState(INITIAL_STATE);
               navigate('onboarding');
             }}
           />
