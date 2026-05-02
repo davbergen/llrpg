@@ -1,6 +1,7 @@
 import React from 'react';
 import type { AbilityTier, ScreenProps } from '../types';
 import { ABILITIES, DUNGEON_MONSTERS, DUNGEON_NAME } from '../game/dungeon';
+import { canUseAbility } from '../game/daily-cap';
 import { RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from '../components/rpg';
 
 const tierColor: Record<string, string> = {
@@ -53,6 +54,7 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
   }
 
   const hpPct = Math.max(0, (dungeonState.currentMonsterHp / monster.maxHp) * 100);
+  const canAttack = canUseAbility(Date.now(), dungeonState.lastAbilityUsedAt);
 
   return (
     <div
@@ -154,6 +156,31 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
       </PixelPanel>
 
       <PixelHeader size={10}>⚔ CHOOSE ABILITY</PixelHeader>
+      {!canAttack && (
+        <PixelPanel dark style={{ textAlign: 'center', padding: '10px 12px' }}>
+          <div
+            style={{
+              fontFamily: "'Press Start 2P'",
+              fontSize: 8,
+              color: RPG.gold,
+              lineHeight: 1.6,
+            }}
+          >
+            DAILY CAP REACHED
+          </div>
+          <div
+            style={{
+              fontFamily: "'Press Start 2P'",
+              fontSize: 7,
+              color: RPG.textDim,
+              marginTop: 6,
+              lineHeight: 1.6,
+            }}
+          >
+            COME BACK TOMORROW
+          </div>
+        </PixelPanel>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {ABILITIES.map((ab) => {
           const color = tierColor[ab.tier];
@@ -161,10 +188,12 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
             <button
               key={ab.id}
               onClick={() => onAbilityChosen?.(ab.tier)}
+              disabled={!canAttack}
               style={{
                 ...pixelBorderStyle(color, RPG.panelDark),
                 padding: '12px 14px',
-                cursor: 'pointer',
+                cursor: canAttack ? 'pointer' : 'not-allowed',
+                opacity: canAttack ? 1 : 0.4,
                 textAlign: 'left',
                 display: 'flex',
                 justifyContent: 'space-between',
