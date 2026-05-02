@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SAVE_KEY, loadSave, saveSave, wipeSave, type PersistedState } from './save';
-import { INITIAL_STATE } from './constants';
+import { EMPTY_EQUIPMENT, INITIAL_STATE } from './constants';
 
 function makeStorage() {
   const map = new Map<string, string>();
@@ -17,7 +17,7 @@ function makeStorage() {
 }
 
 const sampleState: PersistedState = {
-  hero: { name: 'Aiko', classType: 'mage' },
+  hero: { name: 'Aiko', classType: 'mage', equipment: EMPTY_EQUIPMENT },
   gameState: INITIAL_STATE,
 };
 

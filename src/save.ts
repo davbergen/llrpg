@@ -1,6 +1,6 @@
 import type { GameState, Hero } from './types';
 
-export const SAVE_KEY = 'llrpg:save:v1';
+export const SAVE_KEY = 'llrpg:save:v2';
 
 export interface PersistedState {
   hero: Hero | null;

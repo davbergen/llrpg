@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Hero, ClassType } from '../types';
+import { EMPTY_EQUIPMENT } from '../constants';
 import {
   RPG,
   pixelBorderStyle,
@@ -359,7 +360,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       <PixelButton
         onClick={() =>
-          selectedClass && onComplete({ name: name.trim() || 'Hero', classType: selectedClass })
+          selectedClass &&
+          onComplete({
+            name: name.trim() || 'Hero',
+            classType: selectedClass,
+            equipment: EMPTY_EQUIPMENT,
+          })
         }
         disabled={!selectedClass}
         style={{ width: '100%', marginTop: 4 }}
