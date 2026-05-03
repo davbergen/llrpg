@@ -343,6 +343,21 @@ function App() {
         </TweakSection>
         <TweakSection label="Debug">
           <TweakButton
+            label="Show level-up screen"
+            onClick={() => {
+              setPendingLoot({
+                monsterName: 'Test Monster',
+                xp: 25,
+                gold: 10,
+                items: [],
+                leveledUp: true,
+                newLevel: gameState.level + 1,
+                dungeonCleared: false,
+              });
+              navigate('loot');
+            }}
+          />
+          <TweakButton
             label="Reset daily cap"
             onClick={() =>
               setGameState((prev) => ({

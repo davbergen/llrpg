@@ -97,7 +97,11 @@ const Loot: React.FC<LootProps> = ({ reward, onContinue, setScreen }) => {
           from { transform: translateY(20px) scale(0.7); opacity: 0; }
           to   { transform: translateY(0)    scale(1);   opacity: 1; }
         }
-        @keyframes levelOverlayIn {
+        @keyframes levelOverlayBackdrop {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes levelOverlayContent {
           0%   { opacity: 0; transform: scale(0.6); }
           40%  { opacity: 1; transform: scale(1.1); }
           70%  { transform: scale(1); }
@@ -122,44 +126,54 @@ const Loot: React.FC<LootProps> = ({ reward, onContinue, setScreen }) => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 16,
             zIndex: 50,
             animation:
-              'levelOverlayIn 0.5s ease forwards, levelOverlayFade 0.4s ease 1.4s forwards',
+              'levelOverlayBackdrop 0.25s ease forwards, levelOverlayFade 0.4s ease 1.4s forwards',
           }}
         >
           <div
             style={{
-              fontFamily: "'Press Start 2P'",
-              fontSize: 22,
-              color: RPG.gold,
-              animation: 'levelStarPulse 0.8s ease-in-out infinite',
-              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 16,
+              animation: 'levelOverlayContent 0.5s ease forwards',
+              transformOrigin: 'center center',
             }}
           >
-            ✦ LEVEL UP! ✦
-          </div>
-          <div
-            style={{
-              fontFamily: "'Press Start 2P'",
-              fontSize: 14,
-              color: RPG.text,
-            }}
-          >
-            LEVEL {reward.newLevel}
-          </div>
-          <div
-            style={{
-              fontFamily: "'Press Start 2P'",
-              fontSize: 8,
-              color: RPG.textDim,
-              textAlign: 'center',
-              lineHeight: 1.6,
-            }}
-          >
-            +10 MAX HP
-            <br />
-            FULLY HEALED
+            <div
+              style={{
+                fontFamily: "'Press Start 2P'",
+                fontSize: 22,
+                color: RPG.gold,
+                animation: 'levelStarPulse 0.8s ease-in-out infinite',
+                textAlign: 'center',
+              }}
+            >
+              ✦ LEVEL UP! ✦
+            </div>
+            <div
+              style={{
+                fontFamily: "'Press Start 2P'",
+                fontSize: 14,
+                color: RPG.text,
+              }}
+            >
+              LEVEL {reward.newLevel}
+            </div>
+            <div
+              style={{
+                fontFamily: "'Press Start 2P'",
+                fontSize: 8,
+                color: RPG.textDim,
+                textAlign: 'center',
+                lineHeight: 1.6,
+              }}
+            >
+              +10 MAX HP
+              <br />
+              FULLY HEALED
+            </div>
           </div>
         </div>
       )}
