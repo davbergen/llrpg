@@ -5,7 +5,7 @@ import { loadSave, saveSave, wipeSave } from './save';
 import { ABILITIES, DUNGEON_MONSTERS } from './game/dungeon';
 import { applyAbility, clampPlayerHp } from './game/combat-engine';
 import { addXp } from './game/progression';
-import { rollMonsterGold, rollMonsterLoot } from './game/loot';
+import { rollBossLoot, rollMonsterGold, rollMonsterLoot } from './game/loot';
 import { NavBar } from './components/rpg';
 import Onboarding from './screens/Onboarding';
 import Home from './screens/Home';
@@ -96,8 +96,8 @@ function App() {
       abilityTier: tier,
       lessonAccuracy: accuracy,
       equipmentDamageBonus: 0,
-      rollLoot: monster && !monster.isBoss ? (m) => rollMonsterLoot(m) : undefined,
-      rollGold: monster && !monster.isBoss ? (m) => rollMonsterGold(m) : undefined,
+      rollLoot: monster ? (m) => (m.isBoss ? rollBossLoot() : rollMonsterLoot(m)) : undefined,
+      rollGold: monster ? (m) => rollMonsterGold(m) : undefined,
     });
 
     const lessonXp = correctCount * XP_PER_CORRECT_ANSWER;
@@ -124,7 +124,7 @@ function App() {
     }));
     setPendingAbility(null);
 
-    if (result.monsterDefeated && !result.dungeonCleared && monster && !monster.isBoss) {
+    if (result.monsterDefeated && monster) {
       setPendingLoot({
         monsterName: monster.name,
         xp: totalXpDelta,
@@ -132,7 +132,7 @@ function App() {
         items: result.lootDrops,
         leveledUp: progress.leveledUp,
         newLevel: progress.level,
-        dungeonCleared: false,
+        dungeonCleared: result.dungeonCleared,
       });
       navigate('loot');
     } else {
@@ -142,8 +142,9 @@ function App() {
   };
 
   const handleLootContinue = () => {
+    const wasCleared = pendingLoot?.dungeonCleared ?? false;
     setPendingLoot(null);
-    navigate('dungeon');
+    navigate(wasCleared ? 'home' : 'dungeon');
   };
 
   const lessonQuestionCount =

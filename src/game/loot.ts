@@ -57,6 +57,39 @@ export const COSMETIC_LOOT_POOL: InventoryItem[] = [
   },
 ];
 
+export const BOSS_LOOT_POOL: InventoryItem[] = [
+  {
+    id: 'dragonbone_helm',
+    name: 'Dragonbone Helm',
+    type: 'helmet',
+    rarity: 'rare',
+    jp: '竜骨の兜',
+    desc: 'Carved from the Grammar Dragon. Sharpens recall.',
+    bonus: 'INT +6',
+    slot: 'head',
+  },
+  {
+    id: 'scaleweave_robe',
+    name: 'Scaleweave Robe',
+    type: 'shield',
+    rarity: 'epic',
+    jp: '鱗織の衣',
+    desc: 'Woven from boss scales. Shrugs off forgotten kanji.',
+    bonus: 'DEF +12',
+    slot: 'chest',
+  },
+  {
+    id: 'kanji_greaves',
+    name: 'Kanji Greaves',
+    type: 'shield',
+    rarity: 'uncommon',
+    jp: '漢字の脛当て',
+    desc: 'Etched leg guards. Grants steady footing on review days.',
+    bonus: 'SPD +5',
+    slot: 'legs',
+  },
+];
+
 export type Rng = () => number;
 
 export function rollMonsterGold(monster: Monster, rng: Rng = Math.random): number {
@@ -74,5 +107,17 @@ export function rollMonsterLoot(
   const dropped = monster.loot.guaranteedItem || rng() < monster.loot.itemDropChance;
   if (!dropped) return [];
   const item = pool[Math.floor(rng() * pool.length)];
+  return [item];
+}
+
+export function rollBossLoot(
+  pool: InventoryItem[] = BOSS_LOOT_POOL,
+  rng: Rng = Math.random,
+): InventoryItem[] {
+  const equippable = pool.filter((item) => item.slot != null);
+  if (equippable.length === 0) {
+    throw new Error('Boss loot pool must contain at least one equippable item');
+  }
+  const item = equippable[Math.floor(rng() * equippable.length)];
   return [item];
 }
