@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { InventoryItem, ItemRarity, ScreenProps } from '../types';
 import {
   RPG,
@@ -32,6 +32,15 @@ const rarityColors: Record<ItemRarity, { color: string; glow: string; label: str
 };
 
 const Loot: React.FC<LootProps> = ({ reward, onContinue, setScreen }) => {
+  const [showLevelOverlay, setShowLevelOverlay] = useState(false);
+
+  useEffect(() => {
+    if (!reward?.leveledUp) return;
+    setShowLevelOverlay(true);
+    const t = setTimeout(() => setShowLevelOverlay(false), 1800);
+    return () => clearTimeout(t);
+  }, [reward?.leveledUp, reward?.newLevel]);
+
   if (!reward) {
     return (
       <div
@@ -80,6 +89,7 @@ const Loot: React.FC<LootProps> = ({ reward, onContinue, setScreen }) => {
         gap: 14,
         background: `radial-gradient(ellipse at center, #1e1a3a 0%, ${RPG.bg} 70%)`,
         alignItems: 'center',
+        position: 'relative',
       }}
     >
       <style>{`
@@ -87,7 +97,86 @@ const Loot: React.FC<LootProps> = ({ reward, onContinue, setScreen }) => {
           from { transform: translateY(20px) scale(0.7); opacity: 0; }
           to   { transform: translateY(0)    scale(1);   opacity: 1; }
         }
+        @keyframes levelOverlayBackdrop {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes levelOverlayContent {
+          0%   { opacity: 0; transform: scale(0.6); }
+          40%  { opacity: 1; transform: scale(1.1); }
+          70%  { transform: scale(1); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes levelOverlayFade {
+          to { opacity: 0; }
+        }
+        @keyframes levelStarPulse {
+          0%, 100% { text-shadow: 0 0 8px ${RPG.gold}, 0 0 24px ${RPG.gold}88; }
+          50%      { text-shadow: 0 0 20px ${RPG.gold}, 0 0 48px ${RPG.gold}; }
+        }
       `}</style>
+
+      {showLevelOverlay && reward.leveledUp && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(ellipse at center, #2a1f00cc 0%, #000000ee 80%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 50,
+            animation:
+              'levelOverlayBackdrop 0.25s ease forwards, levelOverlayFade 0.4s ease 1.4s forwards',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 16,
+              animation: 'levelOverlayContent 0.5s ease forwards',
+              transformOrigin: 'center center',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'Press Start 2P'",
+                fontSize: 22,
+                color: RPG.gold,
+                animation: 'levelStarPulse 0.8s ease-in-out infinite',
+                textAlign: 'center',
+              }}
+            >
+              ✦ LEVEL UP! ✦
+            </div>
+            <div
+              style={{
+                fontFamily: "'Press Start 2P'",
+                fontSize: 14,
+                color: RPG.text,
+              }}
+            >
+              LEVEL {reward.newLevel}
+            </div>
+            <div
+              style={{
+                fontFamily: "'Press Start 2P'",
+                fontSize: 8,
+                color: RPG.textDim,
+                textAlign: 'center',
+                lineHeight: 1.6,
+              }}
+            >
+              +10 MAX HP
+              <br />
+              FULLY HEALED
+            </div>
+          </div>
+        </div>
+      )}
 
       <PixelHeader size={13} color={RPG.gold}>
         ⚔ VICTORY!

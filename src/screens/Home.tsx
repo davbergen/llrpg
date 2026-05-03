@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { ScreenProps } from '../types';
 import { DUNGEON_MONSTERS, DUNGEON_NAME } from '../game/dungeon';
 import {
@@ -18,9 +18,17 @@ const classColors: Record<string, string> = {
   scholar: '#4a9edd',
 };
 
-const Home: React.FC<ScreenProps> = ({ hero, gameState, setScreen }) => {
+const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen }) => {
   const { hp, maxHp, xp, maxXp, level, gold, dungeonState } = gameState;
   const heroColor = classColors[hero.classType] ?? RPG.gold;
+
+  useEffect(() => {
+    if (hp < maxHp) {
+      setGameState((prev) => ({ ...prev, hp: prev.maxHp }));
+    }
+    // Run only on Home mount — restore at the safe haven
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const cleared = dungeonState.currentMonsterIndex >= DUNGEON_MONSTERS.length;
   const progress = Math.min(dungeonState.currentMonsterIndex, DUNGEON_MONSTERS.length);

@@ -166,7 +166,7 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
               lineHeight: 1.6,
             }}
           >
-            DAILY CAP REACHED
+            ⏳ RESTING FOR THE NIGHT
           </div>
           <div
             style={{
@@ -177,7 +177,7 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
               lineHeight: 1.6,
             }}
           >
-            COME BACK TOMORROW
+            RETURN TOMORROW FOR YOUR NEXT ABILITY
           </div>
         </PixelPanel>
       )}
