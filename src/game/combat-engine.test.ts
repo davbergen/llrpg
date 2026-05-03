@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyAbility, clampPlayerHp } from './combat-engine';
+import { applyAbility, clampPlayerHp, KILL_XP_BOSS, KILL_XP_REGULAR } from './combat-engine';
 import { DUNGEON_MONSTERS, initialDungeonState } from './dungeon';
 import type { DungeonState } from '../types';
 
@@ -122,6 +122,31 @@ describe('combat-engine', () => {
       expect(result.monsterDefeated).toBe(true);
       expect(result.dungeonCleared).toBe(true);
       expect(result.nextDungeonState.currentMonsterIndex).toBe(DUNGEON_MONSTERS.length);
+    });
+  });
+
+  describe('xp on kill', () => {
+    it('grants regular XP for non-boss kills', () => {
+      const result = applyAbility({
+        dungeonState: stateAt(0, 1),
+        abilityTier: 'weak',
+        lessonAccuracy: 1,
+        equipmentDamageBonus: 0,
+      });
+      expect(result.monsterDefeated).toBe(true);
+      expect(result.xpGained).toBe(KILL_XP_REGULAR);
+    });
+
+    it('grants boss XP only for boss kills', () => {
+      const bossIndex = DUNGEON_MONSTERS.findIndex((m) => m.isBoss);
+      const result = applyAbility({
+        dungeonState: stateAt(bossIndex, 1),
+        abilityTier: 'strong',
+        lessonAccuracy: 1,
+        equipmentDamageBonus: 0,
+      });
+      expect(result.xpGained).toBe(KILL_XP_BOSS);
+      expect(KILL_XP_BOSS).toBeGreaterThan(KILL_XP_REGULAR);
     });
   });
 
