@@ -6,6 +6,7 @@ import { ABILITIES, DUNGEON_MONSTERS } from './game/dungeon';
 import { applyAbility, clampPlayerHp } from './game/combat-engine';
 import { addXp } from './game/progression';
 import { rollBossLoot, rollMonsterGold, rollMonsterLoot } from './game/loot';
+import { calcStats } from './game/stats';
 import { NavBar } from './components/rpg';
 import Onboarding from './screens/Onboarding';
 import Home from './screens/Home';
@@ -95,7 +96,7 @@ function App() {
       dungeonState: gameState.dungeonState,
       abilityTier: tier,
       lessonAccuracy: accuracy,
-      equipmentDamageBonus: 0,
+      equipmentDamageBonus: calcStats(hero!, hero!.equipment, gameState.level).damageBonus,
       rollLoot: monster ? (m) => (m.isBoss ? rollBossLoot() : rollMonsterLoot(m)) : undefined,
       rollGold: monster ? (m) => rollMonsterGold(m) : undefined,
     });
