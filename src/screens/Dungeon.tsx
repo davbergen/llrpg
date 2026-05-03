@@ -1,6 +1,7 @@
 import React from 'react';
-import type { ScreenProps } from '../types';
+import type { AbilityTier, ScreenProps } from '../types';
 import { ABILITIES, DUNGEON_MONSTERS, DUNGEON_NAME } from '../game/dungeon';
+import { canUseAbility } from '../game/daily-cap';
 import { RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from '../components/rpg';
 
 const tierColor: Record<string, string> = {
@@ -9,8 +10,13 @@ const tierColor: Record<string, string> = {
   strong: RPG.red,
 };
 
-const Dungeon: React.FC<ScreenProps> = ({ gameState, setScreen }) => {
+interface DungeonProps extends ScreenProps {
+  onAbilityChosen?: (tier: AbilityTier) => void;
+}
+
+const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbilityChosen }) => {
   const { dungeonState } = gameState;
+  const playerHpPct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
   const monster = DUNGEON_MONSTERS[dungeonState.currentMonsterIndex];
   const cleared = dungeonState.currentMonsterIndex >= DUNGEON_MONSTERS.length;
 
@@ -48,6 +54,7 @@ const Dungeon: React.FC<ScreenProps> = ({ gameState, setScreen }) => {
   }
 
   const hpPct = Math.max(0, (dungeonState.currentMonsterHp / monster.maxHp) * 100);
+  const canAttack = canUseAbility(Date.now(), dungeonState.lastAbilityUsedAt);
 
   return (
     <div
@@ -120,20 +127,73 @@ const Dungeon: React.FC<ScreenProps> = ({ gameState, setScreen }) => {
         </div>
       </PixelPanel>
 
+      <PixelPanel dark style={{ padding: '10px 12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.green }}>
+            {hero.name.toUpperCase()} HP
+          </span>
+          <span style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.textDim }}>
+            {gameState.hp}/{gameState.maxHp}
+          </span>
+        </div>
+        <div
+          style={{
+            height: 10,
+            background: '#0a0a14',
+            border: `2px solid ${RPG.border}`,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              width: `${playerHpPct}%`,
+              height: '100%',
+              background: RPG.green,
+              transition: 'width 0.4s',
+            }}
+          />
+        </div>
+      </PixelPanel>
+
       <PixelHeader size={10}>⚔ CHOOSE ABILITY</PixelHeader>
+      {!canAttack && (
+        <PixelPanel dark style={{ textAlign: 'center', padding: '10px 12px' }}>
+          <div
+            style={{
+              fontFamily: "'Press Start 2P'",
+              fontSize: 8,
+              color: RPG.gold,
+              lineHeight: 1.6,
+            }}
+          >
+            DAILY CAP REACHED
+          </div>
+          <div
+            style={{
+              fontFamily: "'Press Start 2P'",
+              fontSize: 7,
+              color: RPG.textDim,
+              marginTop: 6,
+              lineHeight: 1.6,
+            }}
+          >
+            COME BACK TOMORROW
+          </div>
+        </PixelPanel>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {ABILITIES.map((ab) => {
           const color = tierColor[ab.tier];
           return (
             <button
               key={ab.id}
-              onClick={() => {
-                /* inert in slice 2 */
-              }}
+              onClick={() => onAbilityChosen?.(ab.tier)}
+              disabled={!canAttack}
               style={{
                 ...pixelBorderStyle(color, RPG.panelDark),
                 padding: '12px 14px',
-                cursor: 'pointer',
+                cursor: canAttack ? 'pointer' : 'not-allowed',
+                opacity: canAttack ? 1 : 0.4,
                 textAlign: 'left',
                 display: 'flex',
                 justifyContent: 'space-between',

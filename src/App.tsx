@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Hero, ScreenName, GameState, Tweaks } from './types';
+import type { AbilityTier, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadSave, saveSave, wipeSave } from './save';
+import { ABILITIES, DUNGEON_MONSTERS } from './game/dungeon';
+import { applyAbility, clampPlayerHp } from './game/combat-engine';
+import { addXp } from './game/progression';
+import { rollBossLoot, rollMonsterGold, rollMonsterLoot } from './game/loot';
+import { calcStats } from './game/stats';
 import { NavBar } from './components/rpg';
 import Onboarding from './screens/Onboarding';
 import Home from './screens/Home';
 import Dungeon from './screens/Dungeon';
 import Lesson from './screens/Lesson';
-import Loot from './screens/Loot';
+import Loot, { type LootReward } from './screens/Loot';
 import Profile from './screens/Profile';
+
+const XP_PER_CORRECT_ANSWER = 5;
 import {
   TweaksPanel,
   TweakSection,
@@ -27,6 +34,8 @@ function App() {
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [transition, setTransition] = useState(false);
   const [showTweaks, setShowTweaks] = useState(false);
+  const [pendingAbility, setPendingAbility] = useState<AbilityTier | null>(null);
+  const [pendingLoot, setPendingLoot] = useState<LootReward | null>(null);
 
   useEffect(() => {
     saveSave({ hero, gameState });
@@ -66,6 +75,83 @@ function App() {
     setHero(newHero);
     navigate('home');
   };
+
+  const handleAbilityChosen = (tier: AbilityTier) => {
+    setPendingAbility(tier);
+    navigate('lesson');
+  };
+
+  const handleLessonComplete = ({
+    accuracy,
+    correctCount,
+  }: {
+    accuracy: number;
+    correctCount: number;
+    totalCount: number;
+  }) => {
+    if (!pendingAbility) return;
+    const tier = pendingAbility;
+    const monster = DUNGEON_MONSTERS[gameState.dungeonState.currentMonsterIndex];
+    const result = applyAbility({
+      dungeonState: gameState.dungeonState,
+      abilityTier: tier,
+      lessonAccuracy: accuracy,
+      equipmentDamageBonus: calcStats(hero!, hero!.equipment, gameState.level).damageBonus,
+      rollLoot: monster ? (m) => (m.isBoss ? rollBossLoot() : rollMonsterLoot(m)) : undefined,
+      rollGold: monster ? (m) => rollMonsterGold(m) : undefined,
+    });
+
+    const lessonXp = correctCount * XP_PER_CORRECT_ANSWER;
+    const totalXpDelta = lessonXp + result.xpGained;
+    const progress = addXp(
+      { xp: gameState.xp, level: gameState.level, maxXp: gameState.maxXp },
+      totalXpDelta,
+    );
+
+    const nextMaxHp = gameState.maxHp + progress.maxHpDelta;
+    const baseHp = clampPlayerHp(gameState.hp - result.counterDamage);
+    const nextHp = progress.leveledUp ? nextMaxHp : Math.min(baseHp, nextMaxHp);
+
+    setGameState((prev) => ({
+      ...prev,
+      hp: nextHp,
+      maxHp: nextMaxHp,
+      xp: progress.xp,
+      level: progress.level,
+      maxXp: progress.maxXp,
+      gold: prev.gold + result.goldGained,
+      inventory: [...prev.inventory, ...result.lootDrops],
+      dungeonState: result.nextDungeonState,
+    }));
+    setPendingAbility(null);
+
+    if (result.monsterDefeated && monster) {
+      setPendingLoot({
+        monsterName: monster.name,
+        xp: totalXpDelta,
+        gold: result.goldGained,
+        items: result.lootDrops,
+        leveledUp: progress.leveledUp,
+        newLevel: progress.level,
+        dungeonCleared: result.dungeonCleared,
+      });
+      navigate('loot');
+    } else {
+      setPendingLoot(null);
+      navigate('dungeon');
+    }
+  };
+
+  const handleLootContinue = () => {
+    const wasCleared = pendingLoot?.dungeonCleared ?? false;
+    setPendingLoot(null);
+    navigate(wasCleared ? 'home' : 'dungeon');
+  };
+
+  const lessonQuestionCount =
+    pendingAbility != null
+      ? (ABILITIES.find((a) => a.tier === pendingAbility)?.lessonQuestions ?? 5)
+      : undefined;
 
   // Phone frame dimensions
   const frameW = 390;
@@ -161,9 +247,25 @@ function App() {
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
               >
                 {screen === 'home' && <Home {...screenProps} />}
-                {screen === 'dungeon' && <Dungeon {...screenProps} />}
-                {screen === 'lesson' && <Lesson {...screenProps} />}
-                {screen === 'loot' && <Loot {...screenProps} />}
+                {screen === 'dungeon' && (
+                  <Dungeon {...screenProps} onAbilityChosen={handleAbilityChosen} />
+                )}
+                {screen === 'lesson' && (
+                  <Lesson
+                    {...screenProps}
+                    questionCount={lessonQuestionCount}
+                    onComplete={pendingAbility ? handleLessonComplete : undefined}
+                    completeDestination={pendingAbility ? 'dungeon' : 'home'}
+                    completeLabel={pendingAbility ? '⚔ BACK TO DUNGEON' : '🏠 HOME'}
+                  />
+                )}
+                {screen === 'loot' && (
+                  <Loot
+                    {...screenProps}
+                    reward={pendingLoot}
+                    onContinue={handleLootContinue}
+                  />
+                )}
                 {screen === 'profile' && <Profile {...screenProps} />}
               </div>
               <NavBar screen={screen} setScreen={navigate} />
@@ -237,6 +339,17 @@ function App() {
               setGameState(INITIAL_STATE);
               navigate('onboarding');
             }}
+          />
+        </TweakSection>
+        <TweakSection label="Debug">
+          <TweakButton
+            label="Reset daily cap"
+            onClick={() =>
+              setGameState((prev) => ({
+                ...prev,
+                dungeonState: { ...prev.dungeonState, lastAbilityUsedAt: null },
+              }))
+            }
           />
         </TweakSection>
         <TweakSection label="Save">
