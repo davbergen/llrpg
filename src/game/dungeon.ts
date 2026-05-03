@@ -43,9 +43,9 @@ export const DUNGEON_MONSTERS: Monster[] = [
 ];
 
 export const ABILITIES: Ability[] = [
-  { id: 'weak', tier: 'weak', label: 'Quick Strike', baseDamage: 12, lessonQuestions: 5 },
-  { id: 'medium', tier: 'medium', label: 'Power Strike', baseDamage: 28, lessonQuestions: 10 },
-  { id: 'strong', tier: 'strong', label: 'Ultra Strike', baseDamage: 60, lessonQuestions: 20 },
+  { id: 'weak', tier: 'weak', label: 'Quick Strike', baseDamage: 12, lessonQuestions: 1 },
+  { id: 'medium', tier: 'medium', label: 'Power Strike', baseDamage: 28, lessonQuestions: 2 },
+  { id: 'strong', tier: 'strong', label: 'Ultra Strike', baseDamage: 60, lessonQuestions: 3 },
 ];
 
 export function initialDungeonState(): DungeonState {
