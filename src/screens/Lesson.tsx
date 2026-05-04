@@ -9,7 +9,7 @@ import {
   isComplete,
   type LessonState,
 } from '../game/lesson-engine';
-import { VOCAB_POOL } from '../game/vocab';
+import { VOCAB_SPINE } from '../content/spine';
 
 const DEFAULT_QUESTION_COUNT = 5;
 
@@ -36,7 +36,7 @@ const Lesson: React.FC<LessonProps> = ({
   completeLabel = '🏠 HOME',
 }) => {
   const [state, setState] = useState<LessonState>(() =>
-    createLesson({ pool: VOCAB_POOL, questionCount }),
+    createLesson({ pool: VOCAB_SPINE, questionCount }),
   );
   const [phase, setPhase] = useState<Phase>('question');
   const [lastChoice, setLastChoice] = useState<string | null>(null);
