@@ -20,6 +20,7 @@ function entry(jp: string, reading: string, en: string): SpineEntry {
     jlpt: 'N5',
     tags: [],
     faces: ['recall'],
+    cloze: null,
   };
 }
 
@@ -68,9 +69,9 @@ describe('lesson-engine', () => {
   it('draws every question prompt from the supplied pool', () => {
     const lesson = createLesson({ pool: POOL, questionCount: 5, rng: seededRng(2) });
     for (const q of lesson.questions) {
-      expect(POOL.some((e) => e.jp === q.jp && e.reading === q.romaji && e.en === q.correct)).toBe(
-        true,
-      );
+      expect(
+        POOL.some((e) => e.jp === q.prompt && e.reading === q.promptSubtitle && e.en === q.correct),
+      ).toBe(true);
     }
   });
 

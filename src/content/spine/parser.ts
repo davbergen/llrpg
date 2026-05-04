@@ -1,4 +1,13 @@
-export type SpineFace = 'recall' | 'production' | 'listening';
+export type SpineFace = 'recall' | 'reverse' | 'cloze' | 'meaning' | 'reading';
+
+export const ALL_FACES: readonly SpineFace[] = ['recall', 'reverse', 'cloze', 'meaning', 'reading'];
+
+export interface ClozeSpec {
+  /** Sentence with `{}` marking the blank that holds the target token. */
+  sentence: string;
+  /** The token that fills the blank (typically the entry's jp). */
+  target: string;
+}
 
 export interface SpineEntry {
   id: string;
@@ -10,10 +19,13 @@ export interface SpineEntry {
   jlpt: string;
   tags: string[];
   faces: SpineFace[];
+  /** Required when `faces` includes `cloze`. */
+  cloze: ClozeSpec | null;
 }
 
 const REQUIRED_KEYS = ['id', 'type', 'jp', 'reading', 'en', 'pos', 'jlpt'] as const;
 const ARRAY_KEYS = new Set(['tags', 'faces']);
+const VALID_FACES = new Set<SpineFace>(ALL_FACES);
 
 function stripQuotes(s: string): string {
   if (s.length >= 2 && (s[0] === '"' || s[0] === "'") && s[s.length - 1] === s[0]) {
@@ -51,6 +63,34 @@ function parseBlock(block: string, blockIndex: number): SpineEntry {
       throw new Error(`block ${blockIndex}: missing required field "${k}"`);
     }
   }
+
+  const faces = ((fields.faces as string[] | undefined) ?? []) as SpineFace[];
+  for (const f of faces) {
+    if (!VALID_FACES.has(f)) {
+      throw new Error(`block ${blockIndex}: unknown face "${f}"`);
+    }
+  }
+
+  let cloze: ClozeSpec | null = null;
+  const sentence = fields.cloze_sentence as string | undefined;
+  const target = fields.cloze_target as string | undefined;
+  if (sentence || target) {
+    if (!sentence || !target) {
+      throw new Error(
+        `block ${blockIndex}: cloze_sentence and cloze_target must both be set`,
+      );
+    }
+    if (!sentence.includes('{}')) {
+      throw new Error(`block ${blockIndex}: cloze_sentence must contain '{}' as the blank marker`);
+    }
+    cloze = { sentence, target };
+  }
+  if (faces.includes('cloze') && cloze === null) {
+    throw new Error(
+      `block ${blockIndex}: face 'cloze' requires cloze_sentence and cloze_target`,
+    );
+  }
+
   return {
     id: fields.id as string,
     type: fields.type as string,
@@ -60,7 +100,8 @@ function parseBlock(block: string, blockIndex: number): SpineEntry {
     pos: fields.pos as string,
     jlpt: fields.jlpt as string,
     tags: (fields.tags as string[] | undefined) ?? [],
-    faces: ((fields.faces as string[] | undefined) ?? []) as SpineFace[],
+    faces,
+    cloze,
   };
 }
 

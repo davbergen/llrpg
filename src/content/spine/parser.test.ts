@@ -27,7 +27,59 @@ faces: [recall]
       jlpt: 'N5',
       tags: [],
       faces: ['recall'],
+      cloze: null,
     });
+  });
+
+  it('parses cloze fields when present', () => {
+    const text = `---
+id: eats
+type: vocab
+jp: 食べる
+reading: taberu
+en: to eat
+pos: verb
+jlpt: N5
+tags: []
+faces: [cloze]
+cloze_sentence: 私はりんごを{}。
+cloze_target: 食べる
+---
+`;
+    const [e] = parseSpine(text);
+    expect(e.cloze).toEqual({ sentence: '私はりんごを{}。', target: '食べる' });
+  });
+
+  it('throws when face cloze is declared without cloze fields', () => {
+    const text = `---
+id: bad
+type: vocab
+jp: x
+reading: x
+en: x
+pos: noun
+jlpt: N5
+tags: []
+faces: [cloze]
+---
+`;
+    expect(() => parseSpine(text)).toThrow(/cloze/);
+  });
+
+  it('throws on unknown face values', () => {
+    const text = `---
+id: bad
+type: vocab
+jp: x
+reading: x
+en: x
+pos: noun
+jlpt: N5
+tags: []
+faces: [bogus]
+---
+`;
+    expect(() => parseSpine(text)).toThrow(/unknown face/);
   });
 
   it('parses multiple blocks separated by blank lines', () => {

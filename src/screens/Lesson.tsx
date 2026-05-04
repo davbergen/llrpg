@@ -10,6 +10,29 @@ import {
   summarize,
   type LessonState,
 } from '../game/lesson-engine';
+import type { SpineFace } from '../content/spine';
+
+function facePromptHeader(face: SpineFace): string {
+  switch (face) {
+    case 'recall':
+      return 'What does this mean?';
+    case 'reverse':
+      return 'How do you say this?';
+    case 'cloze':
+      return 'Fill in the blank:';
+    case 'meaning':
+      return 'What does this kanji mean?';
+    case 'reading':
+      return 'How is this kanji read?';
+  }
+}
+
+function facePromptFontSize(face: SpineFace): number {
+  // Sentence-style prompts (cloze) need to wrap; single-token prompts can be huge.
+  if (face === 'cloze') return 14;
+  if (face === 'reverse') return 22;
+  return 36;
+}
 import { VOCAB_SPINE } from '../content/spine';
 import { composeLesson } from '../game/lesson-composer';
 import { applyOutcome, LocalStorageCardStore, newCardState } from '../game/fsrs-scheduler';
@@ -199,22 +222,25 @@ const Lesson: React.FC<LessonProps> = ({
             marginBottom: 8,
           }}
         >
-          What does this mean?
+          {facePromptHeader(q.face)}
         </div>
         <div
           style={{
             fontFamily: "'Press Start 2P'",
-            fontSize: 36,
+            fontSize: facePromptFontSize(q.face),
             color: RPG.text,
             margin: '12px 0',
             textShadow: `0 0 20px ${RPG.gold}66`,
+            lineHeight: 1.4,
           }}
         >
-          {q.jp}
+          {q.prompt}
         </div>
-        <div style={{ fontFamily: "'Courier Prime', monospace", fontSize: 12, color: RPG.textDim }}>
-          {q.romaji}
-        </div>
+        {q.promptSubtitle && (
+          <div style={{ fontFamily: "'Courier Prime', monospace", fontSize: 12, color: RPG.textDim }}>
+            {q.promptSubtitle}
+          </div>
+        )}
       </PixelPanel>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>

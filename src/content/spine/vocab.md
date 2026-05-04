@@ -1310,3 +1310,91 @@ jlpt: N5
 tags: []
 faces: [recall]
 ---
+
+---
+id: k-water
+type: kanji
+jp: 水
+reading: みず
+en: water
+pos: kanji
+jlpt: N5
+tags: []
+faces: [meaning, reading]
+---
+
+---
+id: k-fire
+type: kanji
+jp: 火
+reading: ひ
+en: fire
+pos: kanji
+jlpt: N5
+tags: []
+faces: [meaning, reading]
+---
+
+---
+id: k-tree
+type: kanji
+jp: 木
+reading: き
+en: tree
+pos: kanji
+jlpt: N5
+tags: []
+faces: [meaning, reading]
+---
+
+---
+id: k-mountain
+type: kanji
+jp: 山
+reading: やま
+en: mountain
+pos: kanji
+jlpt: N5
+tags: []
+faces: [meaning, reading]
+---
+
+---
+id: k-sun
+type: kanji
+jp: 日
+reading: ひ
+en: sun
+pos: kanji
+jlpt: N5
+tags: []
+faces: [meaning, reading]
+---
+
+---
+id: cloze-eat-apple
+type: vocab
+jp: 食べる
+reading: taberu
+en: to eat (sentence)
+pos: verb
+jlpt: N5
+tags: [cloze]
+faces: [cloze]
+cloze_sentence: 私はりんごを{}。
+cloze_target: 食べる
+---
+
+---
+id: cloze-drink-water
+type: vocab
+jp: 飲む
+reading: nomu
+en: to drink (sentence)
+pos: verb
+jlpt: N5
+tags: [cloze]
+faces: [cloze]
+cloze_sentence: 水を{}。
+cloze_target: 飲む
+---
