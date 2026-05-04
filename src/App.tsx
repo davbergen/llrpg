@@ -14,6 +14,8 @@ import Dungeon from './screens/Dungeon';
 import Lesson from './screens/Lesson';
 import Loot, { type LootReward } from './screens/Loot';
 import Profile from './screens/Profile';
+import SignIn from './screens/SignIn';
+import { useAuth, ensureHeroRow, signOut } from './auth';
 
 const XP_PER_CORRECT_ANSWER = 5;
 import {
@@ -36,10 +38,22 @@ function App() {
   const [showTweaks, setShowTweaks] = useState(false);
   const [pendingAbility, setPendingAbility] = useState<AbilityTier | null>(null);
   const [pendingLoot, setPendingLoot] = useState<LootReward | null>(null);
+  const [authSkipped, setAuthSkipped] = useState(false);
+
+  const auth = useAuth();
 
   useEffect(() => {
     saveSave({ hero, gameState });
   }, [hero, gameState]);
+
+  const authUserId = auth.status === 'signed-in' ? auth.user.id : null;
+  useEffect(() => {
+    if (authUserId) {
+      ensureHeroRow(authUserId).catch((e) => {
+        console.error('Failed to bootstrap heroes row:', e);
+      });
+    }
+  }, [authUserId]);
 
   const handleWipeSave = () => {
     wipeSave();
@@ -239,7 +253,9 @@ function App() {
             fontSize: `${tweaks.fontSize}%`,
           }}
         >
-          {hero === null ? (
+          {auth.status === 'signed-out' && !authSkipped ? (
+            <SignIn onSkip={() => setAuthSkipped(true)} />
+          ) : hero === null ? (
             <Onboarding onComplete={handleOnboardingComplete} />
           ) : (
             <>
@@ -369,6 +385,18 @@ function App() {
         </TweakSection>
         <TweakSection label="Save">
           <TweakButton label="Wipe save" onClick={handleWipeSave} />
+        </TweakSection>
+        <TweakSection label="Auth">
+          <TweakButton
+            label={auth.status === 'signed-in' ? `Sign out (${auth.user.email ?? 'user'})` : 'Show sign-in'}
+            onClick={() => {
+              if (auth.status === 'signed-in') {
+                signOut().catch((e) => console.error(e));
+              } else {
+                setAuthSkipped(false);
+              }
+            }}
+          />
         </TweakSection>
       </TweaksPanel>
     </>
