@@ -13,3 +13,11 @@ uploads/
 Thumbs.db
 .idea/
 .vscode/
+
+# Local env
+.env
+.env.local
+.env.*.local
+
+# Supabase CLI link state
+supabase/.temp/

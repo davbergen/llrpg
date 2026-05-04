@@ -7,17 +7,31 @@ import {
   isComplete,
   type LessonState,
 } from './lesson-engine';
-import type { VocabEntry } from './vocab';
+import type { SpineEntry } from '../content/spine';
 
-const POOL: VocabEntry[] = [
-  { jp: '水', romaji: 'mizu', en: 'water' },
-  { jp: '火', romaji: 'hi', en: 'fire' },
-  { jp: '木', romaji: 'ki', en: 'tree' },
-  { jp: '山', romaji: 'yama', en: 'mountain' },
-  { jp: '川', romaji: 'kawa', en: 'river' },
-  { jp: '空', romaji: 'sora', en: 'sky' },
-  { jp: '海', romaji: 'umi', en: 'sea' },
-  { jp: '雨', romaji: 'ame', en: 'rain' },
+function entry(jp: string, reading: string, en: string): SpineEntry {
+  return {
+    id: en,
+    type: 'vocab',
+    jp,
+    reading,
+    en,
+    pos: 'noun',
+    jlpt: 'N5',
+    tags: [],
+    faces: ['recall'],
+  };
+}
+
+const POOL: SpineEntry[] = [
+  entry('水', 'mizu', 'water'),
+  entry('火', 'hi', 'fire'),
+  entry('木', 'ki', 'tree'),
+  entry('山', 'yama', 'mountain'),
+  entry('川', 'kawa', 'river'),
+  entry('空', 'sora', 'sky'),
+  entry('海', 'umi', 'sea'),
+  entry('雨', 'ame', 'rain'),
 ];
 
 // Deterministic mulberry32 PRNG so tests don't depend on Math.random
@@ -54,7 +68,7 @@ describe('lesson-engine', () => {
   it('draws every question prompt from the supplied pool', () => {
     const lesson = createLesson({ pool: POOL, questionCount: 5, rng: seededRng(2) });
     for (const q of lesson.questions) {
-      expect(POOL.some((e) => e.jp === q.jp && e.romaji === q.romaji && e.en === q.correct)).toBe(
+      expect(POOL.some((e) => e.jp === q.jp && e.reading === q.romaji && e.en === q.correct)).toBe(
         true,
       );
     }

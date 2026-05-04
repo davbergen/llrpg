@@ -1,4 +1,4 @@
-import type { VocabEntry } from './vocab';
+import type { SpineEntry } from '../content/spine';
 
 export interface MCQ {
   jp: string;
@@ -22,7 +22,7 @@ export interface LessonState {
 export type Rng = () => number;
 
 export interface CreateLessonOptions {
-  pool: VocabEntry[];
+  pool: readonly SpineEntry[];
   questionCount: number;
   rng?: Rng;
 }
@@ -54,7 +54,7 @@ export function createLesson({ pool, questionCount, rng = Math.random }: CreateL
     const options = shuffle([entry.en, ...distractors.map((d) => d.en)], rng);
     return {
       jp: entry.jp,
-      romaji: entry.romaji,
+      romaji: entry.reading,
       correct: entry.en,
       options,
     };
