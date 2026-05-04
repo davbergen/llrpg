@@ -7,9 +7,14 @@ import {
   createLesson,
   currentQuestion,
   isComplete,
+  summarize,
   type LessonState,
 } from '../game/lesson-engine';
 import { VOCAB_SPINE } from '../content/spine';
+import { composeLesson } from '../game/lesson-composer';
+import { applyOutcome, LocalStorageCardStore, newCardState } from '../game/fsrs-scheduler';
+
+const cardStore = new LocalStorageCardStore();
 
 const DEFAULT_QUESTION_COUNT = 5;
 
@@ -35,9 +40,19 @@ const Lesson: React.FC<LessonProps> = ({
   completeDestination = 'home',
   completeLabel = '🏠 HOME',
 }) => {
-  const [state, setState] = useState<LessonState>(() =>
-    createLesson({ pool: VOCAB_SPINE, questionCount }),
-  );
+  const [state, setState] = useState<LessonState>(() => {
+    const cards = composeLesson({
+      spine: VOCAB_SPINE,
+      store: cardStore,
+      count: questionCount,
+      now: Date.now(),
+    });
+    if (cards.length === 0) {
+      // No due, no new — fall back to legacy random draw so the screen never blanks.
+      return createLesson({ pool: VOCAB_SPINE, questionCount });
+    }
+    return createLesson({ pool: VOCAB_SPINE, questionCount, cards });
+  });
   const [phase, setPhase] = useState<Phase>('question');
   const [lastChoice, setLastChoice] = useState<string | null>(null);
 
@@ -61,7 +76,15 @@ const Lesson: React.FC<LessonProps> = ({
     setState(next);
     setLastChoice(null);
     if (isComplete(next)) {
-      const acc = accuracy(next);
+      const summary = summarize(next);
+      const now = Date.now();
+      for (let i = 0; i < summary.cardIds.length; i++) {
+        const key = summary.cardIds[i];
+        const outcome = summary.ratings[i];
+        const prior = cardStore.get(key) ?? newCardState(now);
+        cardStore.set(key, applyOutcome(prior, outcome, now));
+      }
+      const acc = summary.accuracy;
       const correctCount = next.answers.filter((a) => a.correct).length;
       if (onComplete) {
         // Parent owns the post-lesson flow (combat / loot routing).
