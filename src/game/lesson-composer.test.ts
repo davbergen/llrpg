@@ -23,6 +23,7 @@ function entry(id: string): SpineEntry {
     jlpt: 'N5',
     tags: [],
     faces: ['recall'],
+    cloze: null,
   };
 }
 

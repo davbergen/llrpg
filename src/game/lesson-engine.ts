@@ -1,14 +1,14 @@
-import type { SpineEntry } from '../content/spine';
+import type { SpineEntry, SpineFace } from '../content/spine';
 import type { ComposedCard } from './lesson-composer';
-import type { CardKey, Outcome } from './fsrs-scheduler';
+import { cardKey, type CardKey, type Outcome } from './fsrs-scheduler';
+import {
+  dayNumber,
+  deriveSeed,
+  renderCard,
+  type MCQQuestion,
+} from './card-renderer';
 
-export interface MCQ {
-  jp: string;
-  romaji: string;
-  correct: string;
-  options: string[];
-  cardId: CardKey | null;
-}
+export type MCQ = MCQQuestion;
 
 export interface AnswerRecord {
   questionIndex: number;
@@ -42,10 +42,11 @@ export interface CreateLessonOptions {
    * is ignored. This is the path taken by the FSRS-driven flow (Slice 12+).
    */
   cards?: readonly ComposedCard[];
+  /** Wall-clock used to derive the per-day distractor seed. Defaults to `Date.now()`. */
+  now?: number;
 }
 
-const DISTRACTORS_PER_QUESTION = 3;
-const OPTIONS_PER_QUESTION = DISTRACTORS_PER_QUESTION + 1;
+const OPTIONS_PER_QUESTION = 4;
 
 function shuffle<T>(items: readonly T[], rng: Rng): T[] {
   const copy = items.slice();
@@ -56,33 +57,21 @@ function shuffle<T>(items: readonly T[], rng: Rng): T[] {
   return copy;
 }
 
-function buildMCQ(entry: SpineEntry, pool: readonly SpineEntry[], rng: Rng, cardId: CardKey | null): MCQ {
-  const distractors = shuffle(
-    pool.filter((e) => e.en !== entry.en),
-    rng,
-  ).slice(0, DISTRACTORS_PER_QUESTION);
-  const options = shuffle([entry.en, ...distractors.map((d) => d.en)], rng);
-  return {
-    jp: entry.jp,
-    romaji: entry.reading,
-    correct: entry.en,
-    options,
-    cardId,
-  };
-}
-
 export function createLesson({
   pool,
   questionCount,
   rng = Math.random,
   cards,
+  now = Date.now(),
 }: CreateLessonOptions): LessonState {
   if (pool.length < OPTIONS_PER_QUESTION) {
     throw new Error(`pool must contain at least ${OPTIONS_PER_QUESTION} entries`);
   }
 
+  const day = dayNumber(now);
+
   if (cards) {
-    const questions = cards.map((c) => buildMCQ(c.entry, pool, rng, c.key));
+    const questions = cards.map((c) => renderCard(c.entry, c.face, pool, deriveSeed(c.key, day)));
     return {
       questions,
       cardIds: cards.map((c) => c.key),
@@ -92,11 +81,18 @@ export function createLesson({
   }
 
   if (questionCount < 0) throw new Error('questionCount must be >= 0');
-  const prompts = shuffle(pool, rng).slice(0, questionCount);
-  const questions: MCQ[] = prompts.map((entry) => buildMCQ(entry, pool, rng, null));
+  // Legacy random-draw fallback: pick recall cards from any entry that supports recall.
+  const recallPool = pool.filter((e) => e.faces.includes('recall'));
+  const source = recallPool.length >= OPTIONS_PER_QUESTION ? recallPool : pool;
+  const prompts = shuffle(source, rng).slice(0, questionCount);
+  const questions: MCQ[] = prompts.map((entry) => {
+    const face: SpineFace = 'recall';
+    const seed = deriveSeed(cardKey(entry.id, face), day) ^ Math.floor(rng() * 0xffffffff);
+    return renderCard(entry, face, pool, seed);
+  });
   return {
     questions,
-    cardIds: questions.map((q) => q.cardId).filter((id): id is CardKey => id !== null),
+    cardIds: questions.map((q) => q.cardId),
     currentIndex: 0,
     answers: [],
   };
@@ -133,9 +129,7 @@ export function accuracy(state: LessonState): number {
 
 export function summarize(state: LessonState): LessonSummary {
   const ratings: Outcome[] = state.answers.map((a) => (a.correct ? 'correct' : 'wrong'));
-  const cardIds: CardKey[] = state.answers
-    .map((a) => state.questions[a.questionIndex]?.cardId ?? null)
-    .filter((id): id is CardKey => id !== null);
+  const cardIds: CardKey[] = state.answers.map((a) => state.questions[a.questionIndex].cardId);
   return {
     accuracy: accuracy(state),
     ratings,
