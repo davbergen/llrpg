@@ -1880,3 +1880,541 @@ jlpt: N5
 tags: [time]
 faces: [recall]
 ---
+
+---
+id: to-do
+type: vocab
+jp: する
+reading: suru
+en: to do
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-buy
+type: vocab
+jp: 買う
+reading: kau
+en: to buy
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-read
+type: vocab
+jp: 読む
+reading: yomu
+en: to read
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-write
+type: vocab
+jp: 書く
+reading: kaku
+en: to write
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-meet
+type: vocab
+jp: 会う
+reading: au
+en: to meet
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-wait
+type: vocab
+jp: 待つ
+reading: matsu
+en: to wait
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-rest
+type: vocab
+jp: 休む
+reading: yasumu
+en: to rest
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-sleep
+type: vocab
+jp: 寝る
+reading: neru
+en: to sleep
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-wake-up
+type: vocab
+jp: 起きる
+reading: okiru
+en: to wake up
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-stand
+type: vocab
+jp: 立つ
+reading: tatsu
+en: to stand
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-sit
+type: vocab
+jp: 座る
+reading: suwaru
+en: to sit
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-walk
+type: vocab
+jp: 歩く
+reading: aruku
+en: to walk
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-run
+type: vocab
+jp: 走る
+reading: hashiru
+en: to run
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-give
+type: vocab
+jp: あげる
+reading: ageru
+en: to give
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-receive
+type: vocab
+jp: もらう
+reading: morau
+en: to receive
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-make
+type: vocab
+jp: 作る
+reading: tsukuru
+en: to make
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-take-photo
+type: vocab
+jp: 撮る
+reading: toru
+en: to take (a photo)
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: to-understand
+type: vocab
+jp: 分かる
+reading: wakaru
+en: to understand
+pos: verb
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: hot
+type: vocab
+jp: 暑い
+reading: atsui
+en: hot
+pos: adjective
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: cold
+type: vocab
+jp: 寒い
+reading: samui
+en: cold
+pos: adjective
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: fast
+type: vocab
+jp: 速い
+reading: hayai
+en: fast
+pos: adjective
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: slow
+type: vocab
+jp: 遅い
+reading: osoi
+en: slow
+pos: adjective
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: near
+type: vocab
+jp: 近い
+reading: chikai
+en: near
+pos: adjective
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: far
+type: vocab
+jp: 遠い
+reading: tooi
+en: far
+pos: adjective
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: easy
+type: vocab
+jp: 易しい
+reading: yasashii
+en: easy
+pos: adjective
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: difficult
+type: vocab
+jp: 難しい
+reading: muzukashii
+en: difficult
+pos: adjective
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: busy
+type: vocab
+jp: 忙しい
+reading: isogashii
+en: busy
+pos: adjective
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: fun
+type: vocab
+jp: 楽しい
+reading: tanoshii
+en: fun
+pos: adjective
+jlpt: N5
+tags: []
+faces: [recall]
+---
+
+---
+id: a-little
+type: vocab
+jp: 少し
+reading: sukoshi
+en: a little
+pos: adverb
+jlpt: N5
+tags: [adverb]
+faces: [recall]
+---
+
+---
+id: very
+type: vocab
+jp: とても
+reading: totemo
+en: very
+pos: adverb
+jlpt: N5
+tags: [adverb]
+faces: [recall]
+---
+
+---
+id: always
+type: vocab
+jp: いつも
+reading: itsumo
+en: always
+pos: adverb
+jlpt: N5
+tags: [adverb]
+faces: [recall]
+---
+
+---
+id: sometimes
+type: vocab
+jp: 時々
+reading: tokidoki
+en: sometimes
+pos: adverb
+jlpt: N5
+tags: [adverb]
+faces: [recall]
+---
+
+---
+id: together
+type: vocab
+jp: 一緒に
+reading: issho-ni
+en: together
+pos: adverb
+jlpt: N5
+tags: [adverb]
+faces: [recall]
+---
+
+---
+id: slowly
+type: vocab
+jp: ゆっくり
+reading: yukkuri
+en: slowly
+pos: adverb
+jlpt: N5
+tags: [adverb]
+faces: [recall]
+---
+
+---
+id: hello
+type: vocab
+jp: こんにちは
+reading: konnichiwa
+en: hello
+pos: expression
+jlpt: N5
+tags: [greeting]
+faces: [recall]
+---
+
+---
+id: thank-you
+type: vocab
+jp: ありがとう
+reading: arigatou
+en: thank you
+pos: expression
+jlpt: N5
+tags: [greeting]
+faces: [recall]
+---
+
+---
+id: sorry
+type: vocab
+jp: ごめんなさい
+reading: gomennasai
+en: sorry
+pos: expression
+jlpt: N5
+tags: [greeting]
+faces: [recall]
+---
+
+---
+id: goodbye
+type: vocab
+jp: さようなら
+reading: sayounara
+en: goodbye
+pos: expression
+jlpt: N5
+tags: [greeting]
+faces: [recall]
+---
+
+---
+id: please
+type: vocab
+jp: お願いします
+reading: onegaishimasu
+en: please
+pos: expression
+jlpt: N5
+tags: [greeting]
+faces: [recall]
+---
+
+---
+id: cloze-go-school
+type: vocab
+jp: 行く
+reading: iku
+en: to go (sentence)
+pos: verb
+jlpt: N5
+tags: [cloze]
+faces: [cloze]
+cloze_sentence: 学校に{}。
+cloze_target: 行く
+---
+
+---
+id: cloze-read-book
+type: vocab
+jp: 読む
+reading: yomu
+en: to read (sentence)
+pos: verb
+jlpt: N5
+tags: [cloze]
+faces: [cloze]
+cloze_sentence: 本を{}。
+cloze_target: 読む
+---
+
+---
+id: cloze-buy-bread
+type: vocab
+jp: 買う
+reading: kau
+en: to buy (sentence)
+pos: verb
+jlpt: N5
+tags: [cloze]
+faces: [cloze]
+cloze_sentence: パンを{}。
+cloze_target: 買う
+---
+
+---
+id: cloze-meet-friend
+type: vocab
+jp: 会う
+reading: au
+en: to meet (sentence)
+pos: verb
+jlpt: N5
+tags: [cloze]
+faces: [cloze]
+cloze_sentence: 友達に{}。
+cloze_target: 会う
+---
+
+---
+id: cloze-cold-today
+type: vocab
+jp: 寒い
+reading: samui
+en: cold (sentence)
+pos: adjective
+jlpt: N5
+tags: [cloze]
+faces: [cloze]
+cloze_sentence: 今日はとても{}です。
+cloze_target: 寒い
+---
