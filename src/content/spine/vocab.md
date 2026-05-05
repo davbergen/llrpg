@@ -1340,3 +1340,543 @@ faces: [cloze]
 cloze_sentence: 水を{}。
 cloze_target: 飲む
 ---
+
+---
+id: head
+type: vocab
+jp: 頭
+reading: atama
+en: head
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: face
+type: vocab
+jp: 顔
+reading: kao
+en: face
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: eye
+type: vocab
+jp: 目
+reading: me
+en: eye
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: ear
+type: vocab
+jp: 耳
+reading: mimi
+en: ear
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: nose
+type: vocab
+jp: 鼻
+reading: hana
+en: nose
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: mouth
+type: vocab
+jp: 口
+reading: kuchi
+en: mouth
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: tooth
+type: vocab
+jp: 歯
+reading: ha
+en: tooth
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: hand
+type: vocab
+jp: 手
+reading: te
+en: hand
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: foot
+type: vocab
+jp: 足
+reading: ashi
+en: foot
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: hair
+type: vocab
+jp: 髪
+reading: kami
+en: hair
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: neck
+type: vocab
+jp: 首
+reading: kubi
+en: neck
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: body
+type: vocab
+jp: 体
+reading: karada
+en: body
+pos: noun
+jlpt: N5
+tags: [body]
+faces: [recall]
+---
+
+---
+id: red
+type: vocab
+jp: 赤い
+reading: akai
+en: red
+pos: adjective
+jlpt: N5
+tags: [color]
+faces: [recall]
+---
+
+---
+id: blue
+type: vocab
+jp: 青い
+reading: aoi
+en: blue
+pos: adjective
+jlpt: N5
+tags: [color]
+faces: [recall]
+---
+
+---
+id: white
+type: vocab
+jp: 白い
+reading: shiroi
+en: white
+pos: adjective
+jlpt: N5
+tags: [color]
+faces: [recall]
+---
+
+---
+id: black
+type: vocab
+jp: 黒い
+reading: kuroi
+en: black
+pos: adjective
+jlpt: N5
+tags: [color]
+faces: [recall]
+---
+
+---
+id: yellow
+type: vocab
+jp: 黄色い
+reading: kiiroi
+en: yellow
+pos: adjective
+jlpt: N5
+tags: [color]
+faces: [recall]
+---
+
+---
+id: color
+type: vocab
+jp: 色
+reading: iro
+en: color
+pos: noun
+jlpt: N5
+tags: [color]
+faces: [recall]
+---
+
+---
+id: shirt
+type: vocab
+jp: シャツ
+reading: shatsu
+en: shirt
+pos: noun
+jlpt: N5
+tags: [clothing]
+faces: [recall]
+---
+
+---
+id: hat
+type: vocab
+jp: 帽子
+reading: boushi
+en: hat
+pos: noun
+jlpt: N5
+tags: [clothing]
+faces: [recall]
+---
+
+---
+id: shoes
+type: vocab
+jp: 靴
+reading: kutsu
+en: shoes
+pos: noun
+jlpt: N5
+tags: [clothing]
+faces: [recall]
+---
+
+---
+id: bag
+type: vocab
+jp: 鞄
+reading: kaban
+en: bag
+pos: noun
+jlpt: N5
+tags: [object]
+faces: [recall]
+---
+
+---
+id: umbrella
+type: vocab
+jp: 傘
+reading: kasa
+en: umbrella
+pos: noun
+jlpt: N5
+tags: [object]
+faces: [recall]
+---
+
+---
+id: key
+type: vocab
+jp: 鍵
+reading: kagi
+en: key
+pos: noun
+jlpt: N5
+tags: [object]
+faces: [recall]
+---
+
+---
+id: watch
+type: vocab
+jp: 時計
+reading: tokei
+en: watch
+pos: noun
+jlpt: N5
+tags: [object]
+faces: [recall]
+---
+
+---
+id: telephone
+type: vocab
+jp: 電話
+reading: denwa
+en: telephone
+pos: noun
+jlpt: N5
+tags: [object]
+faces: [recall]
+---
+
+---
+id: money
+type: vocab
+jp: お金
+reading: okane
+en: money
+pos: noun
+jlpt: N5
+tags: [object]
+faces: [recall]
+---
+
+---
+id: ticket
+type: vocab
+jp: 切符
+reading: kippu
+en: ticket
+pos: noun
+jlpt: N5
+tags: [object]
+faces: [recall]
+---
+
+---
+id: pronoun-i
+type: vocab
+jp: 私
+reading: watashi
+en: I
+pos: pronoun
+jlpt: N5
+tags: [pronoun]
+faces: [recall]
+---
+
+---
+id: pronoun-you
+type: vocab
+jp: あなた
+reading: anata
+en: you
+pos: pronoun
+jlpt: N5
+tags: [pronoun]
+faces: [recall]
+---
+
+---
+id: pronoun-he
+type: vocab
+jp: 彼
+reading: kare
+en: he
+pos: pronoun
+jlpt: N5
+tags: [pronoun]
+faces: [recall]
+---
+
+---
+id: pronoun-she
+type: vocab
+jp: 彼女
+reading: kanojo
+en: she
+pos: pronoun
+jlpt: N5
+tags: [pronoun]
+faces: [recall]
+---
+
+---
+id: this
+type: vocab
+jp: これ
+reading: kore
+en: this
+pos: pronoun
+jlpt: N5
+tags: [pronoun]
+faces: [recall]
+---
+
+---
+id: that
+type: vocab
+jp: それ
+reading: sore
+en: that
+pos: pronoun
+jlpt: N5
+tags: [pronoun]
+faces: [recall]
+---
+
+---
+id: who
+type: vocab
+jp: 誰
+reading: dare
+en: who
+pos: pronoun
+jlpt: N5
+tags: [question]
+faces: [recall]
+---
+
+---
+id: what
+type: vocab
+jp: 何
+reading: nani
+en: what
+pos: pronoun
+jlpt: N5
+tags: [question]
+faces: [recall]
+---
+
+---
+id: where
+type: vocab
+jp: どこ
+reading: doko
+en: where
+pos: pronoun
+jlpt: N5
+tags: [question]
+faces: [recall]
+---
+
+---
+id: when
+type: vocab
+jp: いつ
+reading: itsu
+en: when
+pos: adverb
+jlpt: N5
+tags: [question]
+faces: [recall]
+---
+
+---
+id: wednesday
+type: vocab
+jp: 水曜日
+reading: suiyoubi
+en: Wednesday
+pos: noun
+jlpt: N5
+tags: [time]
+faces: [recall]
+---
+
+---
+id: thursday
+type: vocab
+jp: 木曜日
+reading: mokuyoubi
+en: Thursday
+pos: noun
+jlpt: N5
+tags: [time]
+faces: [recall]
+---
+
+---
+id: friday
+type: vocab
+jp: 金曜日
+reading: kinyoubi
+en: Friday
+pos: noun
+jlpt: N5
+tags: [time]
+faces: [recall]
+---
+
+---
+id: saturday
+type: vocab
+jp: 土曜日
+reading: doyoubi
+en: Saturday
+pos: noun
+jlpt: N5
+tags: [time]
+faces: [recall]
+---
+
+---
+id: sunday
+type: vocab
+jp: 日曜日
+reading: nichiyoubi
+en: Sunday
+pos: noun
+jlpt: N5
+tags: [time]
+faces: [recall]
+---
+
+---
+id: year
+type: vocab
+jp: 年
+reading: toshi
+en: year
+pos: noun
+jlpt: N5
+tags: [time]
+faces: [recall]
+---
+
+---
+id: hour
+type: vocab
+jp: 時間
+reading: jikan
+en: hour
+pos: noun
+jlpt: N5
+tags: [time]
+faces: [recall]
+---
