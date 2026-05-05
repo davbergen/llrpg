@@ -2,6 +2,14 @@ export type SpineFace = 'recall' | 'reverse' | 'cloze' | 'meaning' | 'reading';
 
 export const ALL_FACES: readonly SpineFace[] = ['recall', 'reverse', 'cloze', 'meaning', 'reading'];
 
+export type SpineFileType = 'vocab' | 'grammar' | 'kanji';
+
+const FACES_BY_FILE_TYPE: Record<SpineFileType, readonly SpineFace[]> = {
+  vocab: ['recall', 'reverse', 'cloze'],
+  grammar: ['recall', 'cloze'],
+  kanji: ['meaning', 'reading'],
+};
+
 export interface ClozeSpec {
   /** Sentence with `{}` marking the blank that holds the target token. */
   sentence: string;
@@ -105,7 +113,12 @@ function parseBlock(block: string, blockIndex: number): SpineEntry {
   };
 }
 
-export function parseSpine(text: string): SpineEntry[] {
+export interface ParseSpineOptions {
+  /** When set, every entry must have `type === fileType` and faces in the type's allowed set. */
+  fileType?: SpineFileType;
+}
+
+export function parseSpine(text: string, options: ParseSpineOptions = {}): SpineEntry[] {
   // Strip HTML comments so they can't be confused with content.
   const stripped = text.replace(/<!--[\s\S]*?-->/g, '');
   const lines = stripped.split('\n');
@@ -131,6 +144,23 @@ export function parseSpine(text: string): SpineEntry[] {
   for (const e of entries) {
     if (ids.has(e.id)) throw new Error(`duplicate id "${e.id}"`);
     ids.add(e.id);
+  }
+  if (options.fileType) {
+    const allowed = new Set<SpineFace>(FACES_BY_FILE_TYPE[options.fileType]);
+    entries.forEach((e, i) => {
+      if (e.type !== options.fileType) {
+        throw new Error(
+          `block ${i}: expected type "${options.fileType}" for this file, got "${e.type}"`,
+        );
+      }
+      for (const f of e.faces) {
+        if (!allowed.has(f)) {
+          throw new Error(
+            `block ${i}: face "${f}" is not allowed for ${options.fileType} entries`,
+          );
+        }
+      }
+    });
   }
   return entries;
 }
