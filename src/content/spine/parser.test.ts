@@ -146,6 +146,54 @@ faces: [recall]
     expect(() => parseSpine(block('dup') + block('dup'))).toThrow(/duplicate id/);
   });
 
+  it('enforces fileType: vocab rejects kanji-typed entries', () => {
+    const text = `---
+id: x
+type: kanji
+jp: 水
+reading: みず
+en: water
+pos: kanji
+jlpt: N5
+tags: []
+faces: [meaning, reading]
+---
+`;
+    expect(() => parseSpine(text, { fileType: 'vocab' })).toThrow(/expected type "vocab"/);
+  });
+
+  it('enforces fileType: kanji rejects vocab faces like recall', () => {
+    const text = `---
+id: x
+type: kanji
+jp: 水
+reading: みず
+en: water
+pos: kanji
+jlpt: N5
+tags: []
+faces: [recall]
+---
+`;
+    expect(() => parseSpine(text, { fileType: 'kanji' })).toThrow(/not allowed for kanji/);
+  });
+
+  it('enforces fileType: grammar rejects reverse face', () => {
+    const text = `---
+id: te-form
+type: grammar
+jp: ～て
+reading: te
+en: te-form
+pos: grammar
+jlpt: N5
+tags: []
+faces: [reverse]
+---
+`;
+    expect(() => parseSpine(text, { fileType: 'grammar' })).toThrow(/not allowed for grammar/);
+  });
+
   it('throws on missing required fields', () => {
     const text = `---
 id: a
