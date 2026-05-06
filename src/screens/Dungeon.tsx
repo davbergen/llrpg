@@ -1,7 +1,7 @@
 import React from 'react';
 import type { AbilityTier, ScreenProps } from '../types';
 import { ABILITIES, DUNGEON_MONSTERS, DUNGEON_NAME } from '../game/dungeon';
-import { resolveMana, canAffordAbility, MANA_MAX } from '../game/mana';
+import { resolveMana, canAffordAbility, initialManaState, MANA_MAX } from '../game/mana';
 import { RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from '../components/rpg';
 
 const tierColor: Record<string, string> = {
@@ -16,7 +16,7 @@ interface DungeonProps extends ScreenProps {
 
 const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbilityChosen }) => {
   const { dungeonState } = gameState;
-  const mana = resolveMana(gameState.mana, Date.now());
+  const mana = resolveMana(gameState.mana ?? initialManaState(Date.now()), Date.now());
   const playerHpPct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
   const monster = DUNGEON_MONSTERS[dungeonState.currentMonsterIndex];
   const cleared = dungeonState.currentMonsterIndex >= DUNGEON_MONSTERS.length;

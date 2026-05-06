@@ -109,6 +109,9 @@ const Lesson: React.FC<LessonProps> = ({
       }
       const acc = summary.accuracy;
       const correctCount = next.answers.filter((a) => a.correct).length;
+      // Render complete screen so the parent's transition fade always has visible content
+      // — even if the parent's post-lesson flow stalls, we never end up showing a blank.
+      setPhase('complete');
       if (onComplete) {
         // Parent owns the post-lesson flow (combat / loot routing).
         onComplete({
@@ -116,9 +119,7 @@ const Lesson: React.FC<LessonProps> = ({
           correctCount,
           totalCount: next.questions.length,
         });
-        return;
       }
-      setPhase('complete');
       return;
     }
     setPhase('question');

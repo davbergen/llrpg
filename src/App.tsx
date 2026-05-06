@@ -109,7 +109,8 @@ function App() {
     const ability = ABILITIES.find((a) => a.tier === tier);
     if (!ability) return;
     setGameState((prev) => {
-      const resolved = resolveMana(prev.mana, Date.now());
+      const baseMana = prev.mana ?? initialManaState(Date.now());
+      const resolved = resolveMana(baseMana, Date.now());
       if (!canAffordAbility(resolved, ability.mpCost)) return prev;
       return { ...prev, mana: spendMana(resolved, ability.mpCost) };
     });
@@ -149,9 +150,10 @@ function App() {
     const nextHp = progress.leveledUp ? nextMaxHp : Math.min(baseHp, nextMaxHp);
 
     setGameState((prev) => {
-      const manaAfterBonus = prev.mana.firstLessonBonusUsedToday
-        ? prev.mana
-        : applyFirstLessonBonus(prev.mana);
+      const baseMana = prev.mana ?? initialManaState(Date.now());
+      const manaAfterBonus = baseMana.firstLessonBonusUsedToday
+        ? baseMana
+        : applyFirstLessonBonus(baseMana);
       return {
         ...prev,
         hp: nextHp,
