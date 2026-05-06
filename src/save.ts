@@ -1,6 +1,7 @@
 import type { GameState, Hero } from './types';
+import { initialManaState } from './game/mana';
 
-export const SAVE_KEY = 'llrpg:save:v3';
+export const SAVE_KEY = 'llrpg:save:v2';
 
 export interface PersistedState {
   hero: Hero | null;
@@ -34,7 +35,11 @@ export function loadSave(storage: StorageLike | null = getStorage()): PersistedS
     if (!parsed || typeof parsed !== 'object' || !('gameState' in parsed) || !('hero' in parsed)) {
       return null;
     }
-    return { ...parsed, placementDone: parsed.placementDone ?? false };
+    const gameState: GameState = {
+      ...parsed.gameState,
+      mana: parsed.gameState.mana ?? initialManaState(Date.now()),
+    };
+    return { ...parsed, gameState, placementDone: parsed.placementDone ?? false };
   } catch {
     return null;
   }
