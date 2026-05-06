@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AbilityTier, Hero, ScreenName, GameState, Tweaks } from './types';
+import type { AbilityTier, ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadSave, saveSave, wipeSave } from './save';
 import { ABILITIES, DUNGEON_MONSTERS } from './game/dungeon';
@@ -8,7 +8,12 @@ import { addXp } from './game/progression';
 import { rollBossLoot, rollMonsterGold, rollMonsterLoot } from './game/loot';
 import { calcStats } from './game/stats';
 import { NavBar } from './components/rpg';
-import Onboarding from './screens/Onboarding';
+import {
+  OnboardingWelcome,
+  OnboardingClass,
+  OnboardingName,
+} from './screens/Onboarding';
+import Placement from './screens/Placement';
 import Home from './screens/Home';
 import Dungeon from './screens/Dungeon';
 import Lesson from './screens/Lesson';
@@ -39,12 +44,17 @@ function App() {
   const [pendingAbility, setPendingAbility] = useState<AbilityTier | null>(null);
   const [pendingLoot, setPendingLoot] = useState<LootReward | null>(null);
   const [authSkipped, setAuthSkipped] = useState(false);
+  const [placementDone, setPlacementDone] = useState<boolean>(
+    initialSave?.placementDone ?? !!initialSave?.hero,
+  );
+  const [welcomeAcknowledged, setWelcomeAcknowledged] = useState(false);
+  const [pendingClass, setPendingClass] = useState<ClassType | null>(null);
 
   const auth = useAuth();
 
   useEffect(() => {
-    saveSave({ hero, gameState });
-  }, [hero, gameState]);
+    saveSave({ hero, gameState, placementDone });
+  }, [hero, gameState, placementDone]);
 
   const authUserId = auth.status === 'signed-in' ? auth.user.id : null;
   useEffect(() => {
@@ -59,6 +69,9 @@ function App() {
     wipeSave();
     setHero(null);
     setGameState(INITIAL_STATE);
+    setPlacementDone(false);
+    setWelcomeAcknowledged(false);
+    setPendingClass(null);
     setScreen('onboarding');
   };
 
@@ -87,6 +100,7 @@ function App() {
 
   const handleOnboardingComplete = (newHero: Hero) => {
     setHero(newHero);
+    setPendingClass(null);
     navigate('home');
   };
 
@@ -255,8 +269,14 @@ function App() {
         >
           {auth.status === 'signed-out' && !authSkipped ? (
             <SignIn onSkip={() => setAuthSkipped(true)} />
+          ) : hero === null && !welcomeAcknowledged && !placementDone ? (
+            <OnboardingWelcome onContinue={() => setWelcomeAcknowledged(true)} />
+          ) : hero === null && !placementDone ? (
+            <Placement onComplete={() => setPlacementDone(true)} />
+          ) : hero === null && pendingClass === null ? (
+            <OnboardingClass onPick={setPendingClass} />
           ) : hero === null ? (
-            <Onboarding onComplete={handleOnboardingComplete} />
+            <OnboardingName classType={pendingClass!} onComplete={handleOnboardingComplete} />
           ) : (
             <>
               <div
@@ -353,6 +373,9 @@ function App() {
             onClick={() => {
               setHero(null);
               setGameState(INITIAL_STATE);
+              setPlacementDone(false);
+              setWelcomeAcknowledged(false);
+              setPendingClass(null);
               navigate('onboarding');
             }}
           />

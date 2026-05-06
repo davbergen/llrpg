@@ -5,6 +5,8 @@ export const SAVE_KEY = 'llrpg:save:v2';
 export interface PersistedState {
   hero: Hero | null;
   gameState: GameState;
+  /** True once the Awakening placement probe has been completed. */
+  placementDone?: boolean;
 }
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -32,7 +34,7 @@ export function loadSave(storage: StorageLike | null = getStorage()): PersistedS
     if (!parsed || typeof parsed !== 'object' || !('gameState' in parsed) || !('hero' in parsed)) {
       return null;
     }
-    return parsed;
+    return { ...parsed, placementDone: parsed.placementDone ?? false };
   } catch {
     return null;
   }
