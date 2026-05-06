@@ -10,10 +10,6 @@ import {
   CharSprite,
 } from '../components/rpg';
 
-interface OnboardingProps {
-  onComplete: (hero: Hero) => void;
-}
-
 interface ClassDef {
   id: ClassType;
   name: string;
@@ -68,6 +64,8 @@ const CLASSES: ClassDef[] = [
   },
 ];
 
+const radialBg = `radial-gradient(ellipse at center, #1e2a4a 0%, ${RPG.bg} 70%)`;
+
 function MiniStatBar({ label, val, color }: { label: string; val: number; color: string }) {
   return (
     <div style={{ marginBottom: 5 }}>
@@ -98,165 +96,82 @@ function MiniStatBar({ label, val, color }: { label: string; val: number; color:
   );
 }
 
-export default function Onboarding({ onComplete }: OnboardingProps) {
-  const [step, setStep] = useState(0); // 0=welcome, 1=name, 2=class
-  const [name, setName] = useState('');
-  const [selectedClass, setSelectedClass] = useState<ClassType | null>(null);
-
-  const radialBg = `radial-gradient(ellipse at center, #1e2a4a 0%, ${RPG.bg} 70%)`;
-
-  // Step 0: Welcome
-  if (step === 0)
-    return (
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '24px 20px',
-          gap: 20,
-          background: radialBg,
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              fontFamily: "'Press Start 2P'",
-              fontSize: 22,
-              color: RPG.gold,
-              lineHeight: 1.5,
-              textShadow: `3px 3px 0 #7a4e08, 0 0 30px ${RPG.gold}66`,
-              letterSpacing: 2,
-            }}
-          >
-            LINGUA
-            <br />
-            QUEST
-          </div>
-          <div
-            style={{
-              fontFamily: "'Press Start 2P'",
-              fontSize: 9,
-              color: RPG.textDim,
-              marginTop: 8,
-            }}
-          >
-            日本語 ADVENTURES
-          </div>
+export function OnboardingWelcome({ onContinue }: { onContinue: () => void }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px 20px',
+        gap: 20,
+        background: radialBg,
+      }}
+    >
+      <div style={{ textAlign: 'center' }}>
+        <div
+          style={{
+            fontFamily: "'Press Start 2P'",
+            fontSize: 22,
+            color: RPG.gold,
+            lineHeight: 1.5,
+            textShadow: `3px 3px 0 #7a4e08, 0 0 30px ${RPG.gold}66`,
+            letterSpacing: 2,
+          }}
+        >
+          LINGUA
+          <br />
+          QUEST
         </div>
-
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', margin: '8px 0' }}>
-          {(['mage', 'warrior', 'rogue', 'scholar'] as ClassType[]).map((c) => (
-            <div key={c} style={{ opacity: 0.7, transform: 'scale(0.7)' }}>
-              <CharSprite classType={c} size={48} />
-            </div>
-          ))}
-        </div>
-
-        <PixelPanel style={{ width: '100%' }}>
-          <div
-            style={{
-              fontFamily: "'Courier Prime', monospace",
-              fontSize: 13,
-              color: RPG.text,
-              lineHeight: 1.7,
-              textAlign: 'center',
-            }}
-          >
-            Embark on an epic journey to master the Japanese language. Complete daily quests, battle
-            grammar bosses, and collect legendary vocabulary!
-          </div>
-        </PixelPanel>
-
-        <PixelButton onClick={() => setStep(1)} style={{ width: '100%' }}>
-          ▶ BEGIN ADVENTURE
-        </PixelButton>
-        <div style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.textDim }}>
-          ✦ NEW HERO ✦
+        <div
+          style={{
+            fontFamily: "'Press Start 2P'",
+            fontSize: 9,
+            color: RPG.textDim,
+            marginTop: 8,
+          }}
+        >
+          日本語 ADVENTURES
         </div>
       </div>
-    );
 
-  // Step 1: Name entry
-  if (step === 1)
-    return (
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '24px 20px',
-          gap: 20,
-          background: radialBg,
-        }}
-      >
-        <PixelHeader size={14}>CREATE HERO</PixelHeader>
-
-        <PixelPanel
-          gold
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}
-        >
-          <CharSprite classType="mage" size={72} />
-          <div style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: RPG.textDim }}>
-            HERO AWAITS A NAME
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', margin: '8px 0' }}>
+        {(['mage', 'warrior', 'rogue', 'scholar'] as ClassType[]).map((c) => (
+          <div key={c} style={{ opacity: 0.7, transform: 'scale(0.7)' }}>
+            <CharSprite classType={c} size={48} />
           </div>
-        </PixelPanel>
-
-        <PixelPanel>
-          <div
-            style={{
-              fontFamily: "'Press Start 2P'",
-              fontSize: 9,
-              color: RPG.textDim,
-              marginBottom: 10,
-            }}
-          >
-            YOUR HERO NAME:
-          </div>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={14}
-            placeholder="Enter name..."
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              background: '#0a0a14',
-              border: `2px solid ${RPG.border}`,
-              color: RPG.text,
-              fontFamily: "'Press Start 2P'",
-              fontSize: 11,
-              padding: '10px 12px',
-              outline: 'none',
-              boxShadow: 'inset 2px 2px 0 rgba(0,0,0,0.5)',
-            }}
-          />
-          <div
-            style={{
-              fontFamily: "'Press Start 2P'",
-              fontSize: 7,
-              color: RPG.textDim,
-              marginTop: 8,
-              textAlign: 'right',
-            }}
-          >
-            {name.length}/14
-          </div>
-        </PixelPanel>
-
-        <PixelButton
-          onClick={() => name.trim().length > 1 && setStep(2)}
-          disabled={name.trim().length < 2}
-          style={{ width: '100%' }}
-        >
-          ▶ CHOOSE CLASS
-        </PixelButton>
+        ))}
       </div>
-    );
 
-  // Step 2: Class selection
+      <PixelPanel style={{ width: '100%' }}>
+        <div
+          style={{
+            fontFamily: "'Courier Prime', monospace",
+            fontSize: 13,
+            color: RPG.text,
+            lineHeight: 1.7,
+            textAlign: 'center',
+          }}
+        >
+          Embark on an epic journey to master the Japanese language. Complete daily quests, battle
+          grammar bosses, and collect legendary vocabulary!
+        </div>
+      </PixelPanel>
+
+      <PixelButton onClick={onContinue} style={{ width: '100%' }}>
+        ▶ BEGIN ADVENTURE
+      </PixelButton>
+      <div style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.textDim }}>
+        ✦ NEW HERO ✦
+      </div>
+    </div>
+  );
+}
+
+export function OnboardingClass({ onPick }: { onPick: (classType: ClassType) => void }) {
+  const [selected, setSelected] = useState<ClassType | null>(null);
   return (
     <div
       style={{
@@ -283,11 +198,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {CLASSES.map((cls) => {
-          const sel = selectedClass === cls.id;
+          const sel = selected === cls.id;
           return (
             <div
               key={cls.id}
-              onClick={() => setSelectedClass(cls.id)}
+              onClick={() => setSelected(cls.id)}
               style={{
                 ...pixelBorderStyle(
                   sel ? cls.color : RPG.border,
@@ -359,16 +274,97 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       </div>
 
       <PixelButton
-        onClick={() =>
-          selectedClass &&
-          onComplete({
-            name: name.trim() || 'Hero',
-            classType: selectedClass,
-            equipment: EMPTY_EQUIPMENT,
-          })
-        }
-        disabled={!selectedClass}
+        onClick={() => selected && onPick(selected)}
+        disabled={!selected}
         style={{ width: '100%', marginTop: 4 }}
+        variant="green"
+      >
+        ▶ CONFIRM CLASS
+      </PixelButton>
+    </div>
+  );
+}
+
+export function OnboardingName({
+  classType,
+  onComplete,
+}: {
+  classType: ClassType;
+  onComplete: (hero: Hero) => void;
+}) {
+  const [name, setName] = useState('');
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '24px 20px',
+        gap: 20,
+        background: radialBg,
+      }}
+    >
+      <PixelHeader size={14}>NAME YOUR HERO</PixelHeader>
+
+      <PixelPanel
+        gold
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}
+      >
+        <CharSprite classType={classType} size={72} />
+        <div style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: RPG.textDim }}>
+          HERO AWAITS A NAME
+        </div>
+      </PixelPanel>
+
+      <PixelPanel>
+        <div
+          style={{
+            fontFamily: "'Press Start 2P'",
+            fontSize: 9,
+            color: RPG.textDim,
+            marginBottom: 10,
+          }}
+        >
+          YOUR HERO NAME:
+        </div>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={14}
+          placeholder="Enter name..."
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            background: '#0a0a14',
+            border: `2px solid ${RPG.border}`,
+            color: RPG.text,
+            fontFamily: "'Press Start 2P'",
+            fontSize: 11,
+            padding: '10px 12px',
+            outline: 'none',
+            boxShadow: 'inset 2px 2px 0 rgba(0,0,0,0.5)',
+          }}
+        />
+        <div
+          style={{
+            fontFamily: "'Press Start 2P'",
+            fontSize: 7,
+            color: RPG.textDim,
+            marginTop: 8,
+            textAlign: 'right',
+          }}
+        >
+          {name.length}/14
+        </div>
+      </PixelPanel>
+
+      <PixelButton
+        onClick={() =>
+          name.trim().length > 1 &&
+          onComplete({ name: name.trim(), classType, equipment: EMPTY_EQUIPMENT })
+        }
+        disabled={name.trim().length < 2}
+        style={{ width: '100%' }}
         variant="green"
       >
         ✦ START QUEST

@@ -19,6 +19,7 @@ function makeStorage() {
 const sampleState: PersistedState = {
   hero: { name: 'Aiko', classType: 'mage', equipment: EMPTY_EQUIPMENT },
   gameState: INITIAL_STATE,
+  placementDone: false,
 };
 
 describe('save module', () => {
