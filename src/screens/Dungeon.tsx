@@ -1,7 +1,7 @@
 import React from 'react';
 import type { AbilityTier, ScreenProps } from '../types';
 import { ABILITIES, DUNGEON_MONSTERS, DUNGEON_NAME } from '../game/dungeon';
-import { canUseAbility } from '../game/daily-cap';
+import { resolveMana, canAffordAbility, MANA_MAX } from '../game/mana';
 import { RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from '../components/rpg';
 
 const tierColor: Record<string, string> = {
@@ -16,9 +16,11 @@ interface DungeonProps extends ScreenProps {
 
 const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbilityChosen }) => {
   const { dungeonState } = gameState;
+  const mana = resolveMana(gameState.mana, Date.now());
   const playerHpPct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
   const monster = DUNGEON_MONSTERS[dungeonState.currentMonsterIndex];
   const cleared = dungeonState.currentMonsterIndex >= DUNGEON_MONSTERS.length;
+  const outOfMana = ABILITIES.every((ab) => !canAffordAbility(mana, ab.mpCost));
 
   if (cleared) {
     return (
@@ -54,7 +56,7 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
   }
 
   const hpPct = Math.max(0, (dungeonState.currentMonsterHp / monster.maxHp) * 100);
-  const canAttack = canUseAbility(Date.now(), dungeonState.lastAbilityUsedAt);
+  const manaPct = Math.max(0, (mana.current / MANA_MAX) * 100);
 
   return (
     <div
@@ -142,6 +144,7 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
             background: '#0a0a14',
             border: `2px solid ${RPG.border}`,
             overflow: 'hidden',
+            marginBottom: 8,
           }}
         >
           <div
@@ -153,10 +156,35 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
             }}
           />
         </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: '#6699cc' }}>
+            MANA
+          </span>
+          <span style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.textDim }}>
+            {mana.current}/{MANA_MAX}
+          </span>
+        </div>
+        <div
+          style={{
+            height: 10,
+            background: '#0a0a14',
+            border: `2px solid ${RPG.border}`,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              width: `${manaPct}%`,
+              height: '100%',
+              background: '#6699cc',
+              transition: 'width 0.4s',
+            }}
+          />
+        </div>
       </PixelPanel>
 
       <PixelHeader size={10}>⚔ CHOOSE ABILITY</PixelHeader>
-      {!canAttack && (
+      {outOfMana && (
         <PixelPanel dark style={{ textAlign: 'center', padding: '10px 12px' }}>
           <div
             style={{
@@ -166,7 +194,7 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
               lineHeight: 1.6,
             }}
           >
-            ⏳ RESTING FOR THE NIGHT
+            💧 OUT OF MANA
           </div>
           <div
             style={{
@@ -177,23 +205,24 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
               lineHeight: 1.6,
             }}
           >
-            RETURN TOMORROW FOR YOUR NEXT ABILITY
+            RESETS AT 4AM
           </div>
         </PixelPanel>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {ABILITIES.map((ab) => {
+          const affordable = canAffordAbility(mana, ab.mpCost);
           const color = tierColor[ab.tier];
           return (
             <button
               key={ab.id}
               onClick={() => onAbilityChosen?.(ab.tier)}
-              disabled={!canAttack}
+              disabled={!affordable}
               style={{
                 ...pixelBorderStyle(color, RPG.panelDark),
                 padding: '12px 14px',
-                cursor: canAttack ? 'pointer' : 'not-allowed',
-                opacity: canAttack ? 1 : 0.4,
+                cursor: affordable ? 'pointer' : 'not-allowed',
+                opacity: affordable ? 1 : 0.4,
                 textAlign: 'left',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -219,7 +248,7 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
                     color: RPG.textDim,
                   }}
                 >
-                  {ab.lessonQuestions}q LESSON
+                  {ab.lessonQuestions}q · {ab.mpCost} MP
                 </div>
               </div>
               <div

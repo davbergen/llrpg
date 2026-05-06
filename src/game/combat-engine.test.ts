@@ -8,7 +8,6 @@ function stateAt(index: number, hpOverride?: number): DungeonState {
     dungeonId: 'forest-of-first-words',
     currentMonsterIndex: index,
     currentMonsterHp: hpOverride ?? DUNGEON_MONSTERS[index].maxHp,
-    lastAbilityUsedAt: null,
   };
 }
 
@@ -186,20 +185,6 @@ describe('combat-engine', () => {
         equipmentDamageBonus: 0,
       });
       expect(result.lootDrops).toEqual([]);
-    });
-  });
-
-  describe('lastAbilityUsedAt', () => {
-    it('records the timestamp on the result and next state', () => {
-      const result = applyAbility({
-        dungeonState: stateAt(0),
-        abilityTier: 'weak',
-        lessonAccuracy: 1,
-        equipmentDamageBonus: 0,
-        now: 12345,
-      });
-      expect(result.lastAbilityUsedAt).toBe(12345);
-      expect(result.nextDungeonState.lastAbilityUsedAt).toBe(12345);
     });
   });
 

@@ -14,7 +14,6 @@ export interface ApplyAbilityInput {
   abilityTier: AbilityTier;
   lessonAccuracy: number;
   equipmentDamageBonus: number;
-  now?: number;
   rollLoot?: (monster: Monster) => InventoryItem[];
   rollGold?: (monster: Monster) => number;
 }
@@ -28,7 +27,6 @@ export interface ApplyAbilityResult {
   lootDrops: InventoryItem[];
   goldGained: number;
   xpGained: number;
-  lastAbilityUsedAt: number;
 }
 
 function findAbility(tier: AbilityTier) {
@@ -43,7 +41,6 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
     abilityTier,
     lessonAccuracy,
     equipmentDamageBonus,
-    now = Date.now(),
     rollLoot,
     rollGold,
   } = input;
@@ -77,7 +74,6 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
     currentMonsterHp: monsterDefeated
       ? nextMonster?.maxHp ?? 0
       : monsterHpAfter,
-    lastAbilityUsedAt: now,
   };
 
   return {
@@ -89,7 +85,6 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
     lootDrops,
     goldGained,
     xpGained,
-    lastAbilityUsedAt: now,
   };
 }
 
