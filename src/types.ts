@@ -1,7 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { ManaState } from './game/mana';
+import type { SecondaryResources } from './game/secondary-resources';
 
-export type ClassType = 'mage' | 'warrior' | 'rogue' | 'scholar';
+export type ClassType = 'mage' | 'warrior' | 'priest';
 export type ScreenName = 'onboarding' | 'home' | 'dungeon' | 'lesson' | 'loot' | 'profile';
 
 export type EquipmentSlot = 'head' | 'chest' | 'legs';
@@ -45,17 +46,6 @@ export interface InventoryItem {
   slot?: EquipmentSlot;
 }
 
-export type AbilityTier = 'weak' | 'medium' | 'strong';
-
-export interface Ability {
-  id: string;
-  tier: AbilityTier;
-  label: string;
-  baseDamage: number;
-  mpCost: number;
-  lessonQuestions: number;
-}
-
 export interface MonsterLootEntry {
   goldMin: number;
   goldMax: number;
@@ -77,6 +67,8 @@ export interface DungeonState {
   dungeonId: string;
   currentMonsterIndex: number;
   currentMonsterHp: number;
+  /** Damage-buff multiplier queued by the previous ability, consumed on the next damaging ability. */
+  pendingDamageMultiplier?: number;
 }
 
 export interface GameState {
@@ -94,9 +86,10 @@ export interface GameState {
   inventory: InventoryItem[];
   dungeonState: DungeonState;
   mana: ManaState;
+  secondaryResources: SecondaryResources;
 }
 
-export type { ManaState };
+export type { ManaState, SecondaryResources };
 
 export interface Tweaks {
   accentColor: string;

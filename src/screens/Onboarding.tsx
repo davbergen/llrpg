@@ -43,24 +43,14 @@ const CLASSES: ClassDef[] = [
     ability: 'Iron Will: Streak shield once/week',
   },
   {
-    id: 'rogue',
-    name: 'Rogue',
-    kanji: '忍者',
-    desc: 'Speed learner. Quick lessons, bonus gold on fast answers.',
-    stat1: { label: 'Speed', val: 95 },
-    stat2: { label: 'Gold', val: 75 },
-    color: '#4caf50',
-    ability: 'Quick Strike: Time bonus multiplier',
-  },
-  {
-    id: 'scholar',
-    name: 'Scholar',
-    kanji: '学者',
-    desc: 'Reading & listening specialist. Bonus XP on comprehension.',
-    stat1: { label: 'Reading', val: 85 },
-    stat2: { label: 'Mana', val: 90 },
-    color: '#4a9edd',
-    ability: 'Deep Study: Double XP on review',
+    id: 'priest',
+    name: 'Priest',
+    kanji: '僧侶',
+    desc: 'Sustain caster. Generates Faith from offense, spends it to heal.',
+    stat1: { label: 'Faith', val: 90 },
+    stat2: { label: 'Healing', val: 85 },
+    color: '#f4e060',
+    ability: 'Sacred Verse: Self-heal on faith spend',
   },
 ];
 
@@ -138,7 +128,7 @@ export function OnboardingWelcome({ onContinue }: { onContinue: () => void }) {
       </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', margin: '8px 0' }}>
-        {(['mage', 'warrior', 'rogue', 'scholar'] as ClassType[]).map((c) => (
+        {(['mage', 'warrior', 'priest'] as ClassType[]).map((c) => (
           <div key={c} style={{ opacity: 0.7, transform: 'scale(0.7)' }}>
             <CharSprite classType={c} size={48} />
           </div>

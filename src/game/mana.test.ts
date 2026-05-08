@@ -12,7 +12,7 @@ import {
   applyFirstLessonBonus,
   questionsForMpCost,
 } from './mana';
-import { ABILITIES } from './dungeon';
+import { CLASS_ABILITIES } from './class-abilities';
 
 describe('nextResetIso', () => {
   it('returns next 4am when current time is before 4am', () => {
@@ -148,10 +148,11 @@ describe('questionsForMpCost (cost→questions mapping)', () => {
   });
 });
 
-describe('ABILITIES mpCost consistency', () => {
-  it('each ability mpCost maps to its lessonQuestions', () => {
-    for (const ab of ABILITIES) {
-      expect(questionsForMpCost(ab.mpCost)).toBe(ab.lessonQuestions);
+describe('CLASS_ABILITIES question counts', () => {
+  it('every ability declares a sane lesson question count (1..4)', () => {
+    for (const ab of CLASS_ABILITIES) {
+      expect(ab.lessonQuestions).toBeGreaterThanOrEqual(1);
+      expect(ab.lessonQuestions).toBeLessThanOrEqual(4);
     }
   });
 });

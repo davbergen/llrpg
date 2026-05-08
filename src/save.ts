@@ -1,5 +1,6 @@
 import type { GameState, Hero } from './types';
 import { initialManaState } from './game/mana';
+import { emptySecondaryResources } from './game/secondary-resources';
 
 export const SAVE_KEY = 'llrpg:save:v2';
 
@@ -38,6 +39,7 @@ export function loadSave(storage: StorageLike | null = getStorage()): PersistedS
     const gameState: GameState = {
       ...parsed.gameState,
       mana: parsed.gameState.mana ?? initialManaState(Date.now()),
+      secondaryResources: parsed.gameState.secondaryResources ?? emptySecondaryResources(),
     };
     return { ...parsed, gameState, placementDone: parsed.placementDone ?? false };
   } catch {

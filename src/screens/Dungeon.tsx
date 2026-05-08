@@ -1,26 +1,40 @@
 import React from 'react';
-import type { AbilityTier, ScreenProps } from '../types';
-import { ABILITIES, DUNGEON_MONSTERS, DUNGEON_NAME } from '../game/dungeon';
+import type { ScreenProps } from '../types';
+import { DUNGEON_MONSTERS, DUNGEON_NAME } from '../game/dungeon';
 import { resolveMana, canAffordAbility, initialManaState, MANA_MAX } from '../game/mana';
+import {
+  unlockedAbilities,
+  secondaryResourceForClass,
+  type ClassAbility,
+} from '../game/class-abilities';
+import {
+  RAGE_MAX,
+  FAITH_MAX,
+  emptySecondaryResources,
+  canAffordSecondary,
+} from '../game/secondary-resources';
 import { RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from '../components/rpg';
 
-const tierColor: Record<string, string> = {
-  weak: RPG.green,
-  medium: RPG.gold,
-  strong: RPG.red,
-};
-
 interface DungeonProps extends ScreenProps {
-  onAbilityChosen?: (tier: AbilityTier) => void;
+  onAbilityChosen?: (abilityId: string) => void;
+}
+
+function tierColor(ab: ClassAbility): string {
+  if (ab.mpCost <= 1) return RPG.green;
+  if (ab.mpCost <= 3) return RPG.gold;
+  return RPG.red;
 }
 
 const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbilityChosen }) => {
   const { dungeonState } = gameState;
   const mana = resolveMana(gameState.mana ?? initialManaState(Date.now()), Date.now());
+  const secondary = gameState.secondaryResources ?? emptySecondaryResources();
   const playerHpPct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
   const monster = DUNGEON_MONSTERS[dungeonState.currentMonsterIndex];
   const cleared = dungeonState.currentMonsterIndex >= DUNGEON_MONSTERS.length;
-  const outOfMana = ABILITIES.every((ab) => !canAffordAbility(mana, ab.mpCost));
+  const abilities = unlockedAbilities(hero.classType, gameState.level);
+  const outOfMana = abilities.every((ab) => !canAffordAbility(mana, ab.mpCost));
+  const secondaryKind = secondaryResourceForClass(hero.classType);
 
   if (cleared) {
     return (
@@ -57,6 +71,12 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
 
   const hpPct = Math.max(0, (dungeonState.currentMonsterHp / monster.maxHp) * 100);
   const manaPct = Math.max(0, (mana.current / MANA_MAX) * 100);
+  const secondaryValue =
+    secondaryKind === 'rage' ? secondary.rage : secondaryKind === 'faith' ? secondary.faith : 0;
+  const secondaryMax = secondaryKind === 'rage' ? RAGE_MAX : FAITH_MAX;
+  const secondaryPct = secondaryKind ? (secondaryValue / secondaryMax) * 100 : 0;
+  const secondaryColor = secondaryKind === 'rage' ? '#c44b4b' : '#f4e060';
+  const secondaryLabel = secondaryKind === 'rage' ? 'RAGE' : secondaryKind === 'faith' ? 'FAITH' : '';
 
   return (
     <div
@@ -181,6 +201,57 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
             }}
           />
         </div>
+        {secondaryKind && (
+          <>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: 8,
+                marginBottom: 4,
+              }}
+            >
+              <span
+                style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: secondaryColor }}
+              >
+                {secondaryLabel}
+              </span>
+              <span style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.textDim }}>
+                {secondaryValue}/{secondaryMax}
+              </span>
+            </div>
+            <div
+              style={{
+                height: 10,
+                background: '#0a0a14',
+                border: `2px solid ${RPG.border}`,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: `${secondaryPct}%`,
+                  height: '100%',
+                  background: secondaryColor,
+                  transition: 'width 0.4s',
+                }}
+              />
+            </div>
+          </>
+        )}
+        {dungeonState.pendingDamageMultiplier && dungeonState.pendingDamageMultiplier > 1 && (
+          <div
+            style={{
+              fontFamily: "'Press Start 2P'",
+              fontSize: 7,
+              color: RPG.gold,
+              marginTop: 8,
+              textAlign: 'center',
+            }}
+          >
+            ✦ {dungeonState.pendingDamageMultiplier.toFixed(1)}× NEXT HIT
+          </div>
+        )}
       </PixelPanel>
 
       <PixelHeader size={10}>⚔ CHOOSE ABILITY</PixelHeader>
@@ -210,13 +281,15 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
         </PixelPanel>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {ABILITIES.map((ab) => {
-          const affordable = canAffordAbility(mana, ab.mpCost);
-          const color = tierColor[ab.tier];
+        {abilities.map((ab) => {
+          const manaOk = canAffordAbility(mana, ab.mpCost);
+          const secOk = canAffordSecondary(secondary, ab.classType, ab.secondaryCost);
+          const affordable = manaOk && secOk;
+          const color = tierColor(ab);
           return (
             <button
               key={ab.id}
-              onClick={() => onAbilityChosen?.(ab.tier)}
+              onClick={() => onAbilityChosen?.(ab.id)}
               disabled={!affordable}
               style={{
                 ...pixelBorderStyle(color, RPG.panelDark),
@@ -249,6 +322,8 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
                   }}
                 >
                   {ab.lessonQuestions}q · {ab.mpCost} MP
+                  {ab.secondaryCost ? ` · -${ab.secondaryCost} ${secondaryLabel}` : ''}
+                  {ab.secondaryGain ? ` · +${ab.secondaryGain} ${secondaryLabel}` : ''}
                 </div>
               </div>
               <div
@@ -258,8 +333,14 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
                   color: RPG.gold,
                 }}
               >
-                {ab.baseDamage}
-                <span style={{ fontSize: 7, color: RPG.textDim, marginLeft: 4 }}>DMG</span>
+                {ab.baseDamage > 0 ? (
+                  <>
+                    {ab.baseDamage}
+                    <span style={{ fontSize: 7, color: RPG.textDim, marginLeft: 4 }}>DMG</span>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 8, color: secondaryColor }}>SUPPORT</span>
+                )}
               </div>
             </button>
           );

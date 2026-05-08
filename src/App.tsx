@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AbilityTier, ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
+import type { ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadSave, saveSave, wipeSave } from './save';
-import { ABILITIES, DUNGEON_MONSTERS } from './game/dungeon';
+import { DUNGEON_MONSTERS } from './game/dungeon';
 import { applyAbility, clampPlayerHp } from './game/combat-engine';
+import { findAbilityById } from './game/class-abilities';
+import { emptySecondaryResources, canAffordSecondary } from './game/secondary-resources';
 import { resolveMana, spendMana, canAffordAbility, applyFirstLessonBonus, initialManaState } from './game/mana';
 import { addXp } from './game/progression';
 import { rollBossLoot, rollMonsterGold, rollMonsterLoot } from './game/loot';
@@ -42,7 +44,7 @@ function App() {
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [transition, setTransition] = useState(false);
   const [showTweaks, setShowTweaks] = useState(false);
-  const [pendingAbility, setPendingAbility] = useState<AbilityTier | null>(null);
+  const [pendingAbility, setPendingAbility] = useState<string | null>(null);
   const [pendingLoot, setPendingLoot] = useState<LootReward | null>(null);
   const [authSkipped, setAuthSkipped] = useState(false);
   const [placementDone, setPlacementDone] = useState<boolean>(
@@ -94,7 +96,17 @@ function App() {
   const navigate = (dest: ScreenName) => {
     setTransition(true);
     setTimeout(() => {
-      setScreen(dest);
+      setScreen((prev) => {
+        // Reset secondary resources + queued buffs when leaving the dungeon for home.
+        if (prev === 'dungeon' && dest === 'home') {
+          setGameState((g) => ({
+            ...g,
+            secondaryResources: emptySecondaryResources(),
+            dungeonState: { ...g.dungeonState, pendingDamageMultiplier: undefined },
+          }));
+        }
+        return dest;
+      });
       setTransition(false);
     }, 150);
   };
@@ -105,16 +117,18 @@ function App() {
     navigate('home');
   };
 
-  const handleAbilityChosen = (tier: AbilityTier) => {
-    const ability = ABILITIES.find((a) => a.tier === tier);
+  const handleAbilityChosen = (abilityId: string) => {
+    const ability = findAbilityById(abilityId);
     if (!ability) return;
+    const resources = gameState.secondaryResources ?? emptySecondaryResources();
+    if (!canAffordSecondary(resources, ability.classType, ability.secondaryCost)) return;
     setGameState((prev) => {
       const baseMana = prev.mana ?? initialManaState(Date.now());
       const resolved = resolveMana(baseMana, Date.now());
       if (!canAffordAbility(resolved, ability.mpCost)) return prev;
       return { ...prev, mana: spendMana(resolved, ability.mpCost) };
     });
-    setPendingAbility(tier);
+    setPendingAbility(abilityId);
     navigate('lesson');
   };
 
@@ -127,11 +141,13 @@ function App() {
     totalCount: number;
   }) => {
     if (!pendingAbility) return;
-    const tier = pendingAbility;
+    const ability = findAbilityById(pendingAbility);
+    if (!ability) return;
     const monster = DUNGEON_MONSTERS[gameState.dungeonState.currentMonsterIndex];
     const result = applyAbility({
       dungeonState: gameState.dungeonState,
-      abilityTier: tier,
+      ability,
+      secondaryResources: gameState.secondaryResources ?? emptySecondaryResources(),
       lessonAccuracy: accuracy,
       equipmentDamageBonus: calcStats(hero!, hero!.equipment, gameState.level).damageBonus,
       rollLoot: monster ? (m) => (m.isBoss ? rollBossLoot() : rollMonsterLoot(m)) : undefined,
@@ -146,8 +162,16 @@ function App() {
     );
 
     const nextMaxHp = gameState.maxHp + progress.maxHpDelta;
-    const baseHp = clampPlayerHp(gameState.hp - result.counterDamage);
+    const healed = clampPlayerHp(gameState.hp - result.counterDamage) + result.selfHeal;
+    const baseHp = Math.max(1, healed);
     const nextHp = progress.leveledUp ? nextMaxHp : Math.min(baseHp, nextMaxHp);
+
+    const resourcesAfterRun = result.dungeonCleared
+      ? emptySecondaryResources()
+      : result.nextSecondaryResources;
+    const dungeonAfterRun = result.dungeonCleared
+      ? { ...result.nextDungeonState, pendingDamageMultiplier: undefined }
+      : result.nextDungeonState;
 
     setGameState((prev) => {
       const baseMana = prev.mana ?? initialManaState(Date.now());
@@ -163,8 +187,9 @@ function App() {
         maxXp: progress.maxXp,
         gold: prev.gold + result.goldGained,
         inventory: [...prev.inventory, ...result.lootDrops],
-        dungeonState: result.nextDungeonState,
+        dungeonState: dungeonAfterRun,
         mana: manaAfterBonus,
+        secondaryResources: resourcesAfterRun,
       };
     });
     setPendingAbility(null);
@@ -194,7 +219,7 @@ function App() {
 
   const lessonQuestionCount =
     pendingAbility != null
-      ? (ABILITIES.find((a) => a.tier === pendingAbility)?.lessonQuestions ?? 5)
+      ? (findAbilityById(pendingAbility)?.lessonQuestions ?? 5)
       : undefined;
 
   // Phone frame dimensions
