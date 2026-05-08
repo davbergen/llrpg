@@ -101,6 +101,16 @@ export default function Placement({ onComplete }: PlacementProps) {
         <PixelButton onClick={() => setPhase('probe')} style={{ width: '100%' }}>
           ▶ BEGIN
         </PixelButton>
+        <PixelButton
+          onClick={() => {
+            applyPlacementToStore(session, cardStore, Date.now());
+            onComplete();
+          }}
+          variant="gold"
+          style={{ width: '100%', opacity: 0.6 }}
+        >
+          SKIP
+        </PixelButton>
       </div>
     );
   }
