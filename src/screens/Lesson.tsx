@@ -105,7 +105,13 @@ const Lesson: React.FC<LessonProps> = ({
         const key = summary.cardIds[i];
         const outcome = summary.ratings[i];
         const prior = cardStore.get(key) ?? newCardState(now);
-        cardStore.set(key, applyOutcome(prior, outcome, now));
+        try {
+          cardStore.set(key, applyOutcome(prior, outcome, now));
+        } catch (err) {
+          // One bad card must not blank the screen — log and reset it.
+          console.error('FSRS scheduling failed for card', key, err);
+          cardStore.set(key, applyOutcome(newCardState(now), outcome, now));
+        }
       }
       const acc = summary.accuracy;
       const correctCount = next.answers.filter((a) => a.correct).length;
