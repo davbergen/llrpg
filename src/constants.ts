@@ -1,6 +1,7 @@
 import type { Equipment, GameState, Tweaks } from './types';
 import { initialDungeonState } from './game/dungeon';
 import { initialManaState } from './game/mana';
+import { emptySecondaryResources } from './game/secondary-resources';
 
 export const TWEAK_DEFAULTS: Tweaks = {
   accentColor: '#e6a817',
@@ -31,4 +32,5 @@ export const INITIAL_STATE: GameState = {
   inventory: [],
   dungeonState: initialDungeonState(),
   mana: initialManaState(Date.now()),
+  secondaryResources: emptySecondaryResources(),
 };

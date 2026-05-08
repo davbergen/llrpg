@@ -337,8 +337,7 @@ export function CharSprite({ classType, size = 64 }: CharSpriteProps) {
   const colors: Record<string, { robe: string; hat: string; skin: string; accent: string }> = {
     mage: { robe: '#7a3ca8', hat: '#5a2a88', skin: '#f4d0a0', accent: '#e6a817' },
     warrior: { robe: '#8b2020', hat: '#6b1818', skin: '#d4a070', accent: '#aaaaaa' },
-    rogue: { robe: '#1a3a2a', hat: '#0f2a1a', skin: '#c8956c', accent: '#2a9a5a' },
-    scholar: { robe: '#1a3a6a', hat: '#0f2a4a', skin: '#f4e0b0', accent: '#4a9edd' },
+    priest: { robe: '#e0d8b0', hat: '#c8b878', skin: '#f4d0a0', accent: '#f4e060' },
   };
   const c = colors[classType] ?? colors.mage;
   const s = size;

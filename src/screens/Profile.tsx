@@ -13,15 +13,13 @@ import { calcStats, RARITY_DAMAGE_BONUS } from '../game/stats';
 const classColors: Record<ClassType, string> = {
   mage: '#9b5de5',
   warrior: '#c44b4b',
-  rogue: '#4caf50',
-  scholar: '#4a9edd',
+  priest: '#f4e060',
 };
 
 const classAbilities: Record<ClassType, string[]> = {
   mage: ['Arcane Grammar', 'Spell Weave', 'Kanji Mastery'],
   warrior: ['Iron Vocab', 'Battle Cry', 'Endurance'],
-  rogue: ['Quick Strike', 'Shadow Step', 'Gold Rush'],
-  scholar: ['Deep Study', 'Book Lore', 'Focus'],
+  priest: ['Sacred Verse', 'Faith Heal', 'Divine Smite'],
 };
 
 const rarityColors: Record<ItemRarity, string> = {

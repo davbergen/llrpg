@@ -14,8 +14,7 @@ import {
 const classColors: Record<string, string> = {
   mage: '#9b5de5',
   warrior: '#c44b4b',
-  rogue: '#4caf50',
-  scholar: '#4a9edd',
+  priest: '#f4e060',
 };
 
 const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen }) => {

@@ -1,4 +1,4 @@
-import type { Ability, DungeonState, Monster } from '../types';
+import type { DungeonState, Monster } from '../types';
 
 export const DUNGEON_ID = 'forest-of-first-words';
 export const DUNGEON_NAME = 'Forest of First Words';
@@ -40,12 +40,6 @@ export const DUNGEON_MONSTERS: Monster[] = [
     counterDamage: 15,
     loot: { goldMin: 40, goldMax: 80, itemDropChance: 1, guaranteedItem: true },
   },
-];
-
-export const ABILITIES: Ability[] = [
-  { id: 'weak', tier: 'weak', label: 'Quick Strike', baseDamage: 12, mpCost: 1, lessonQuestions: 1 },
-  { id: 'medium', tier: 'medium', label: 'Power Strike', baseDamage: 28, mpCost: 2, lessonQuestions: 2 },
-  { id: 'strong', tier: 'strong', label: 'Ultra Strike', baseDamage: 60, mpCost: 4, lessonQuestions: 3 },
 ];
 
 export function initialDungeonState(): DungeonState {
