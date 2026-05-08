@@ -4,6 +4,7 @@ import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadSave, saveSave, wipeSave } from './save';
 import { ABILITIES, DUNGEON_MONSTERS } from './game/dungeon';
 import { applyAbility, clampPlayerHp } from './game/combat-engine';
+import { resolveMana, spendMana, canAffordAbility, applyFirstLessonBonus, initialManaState } from './game/mana';
 import { addXp } from './game/progression';
 import { rollBossLoot, rollMonsterGold, rollMonsterLoot } from './game/loot';
 import { calcStats } from './game/stats';
@@ -105,6 +106,14 @@ function App() {
   };
 
   const handleAbilityChosen = (tier: AbilityTier) => {
+    const ability = ABILITIES.find((a) => a.tier === tier);
+    if (!ability) return;
+    setGameState((prev) => {
+      const baseMana = prev.mana ?? initialManaState(Date.now());
+      const resolved = resolveMana(baseMana, Date.now());
+      if (!canAffordAbility(resolved, ability.mpCost)) return prev;
+      return { ...prev, mana: spendMana(resolved, ability.mpCost) };
+    });
     setPendingAbility(tier);
     navigate('lesson');
   };
@@ -140,17 +149,24 @@ function App() {
     const baseHp = clampPlayerHp(gameState.hp - result.counterDamage);
     const nextHp = progress.leveledUp ? nextMaxHp : Math.min(baseHp, nextMaxHp);
 
-    setGameState((prev) => ({
-      ...prev,
-      hp: nextHp,
-      maxHp: nextMaxHp,
-      xp: progress.xp,
-      level: progress.level,
-      maxXp: progress.maxXp,
-      gold: prev.gold + result.goldGained,
-      inventory: [...prev.inventory, ...result.lootDrops],
-      dungeonState: result.nextDungeonState,
-    }));
+    setGameState((prev) => {
+      const baseMana = prev.mana ?? initialManaState(Date.now());
+      const manaAfterBonus = baseMana.firstLessonBonusUsedToday
+        ? baseMana
+        : applyFirstLessonBonus(baseMana);
+      return {
+        ...prev,
+        hp: nextHp,
+        maxHp: nextMaxHp,
+        xp: progress.xp,
+        level: progress.level,
+        maxXp: progress.maxXp,
+        gold: prev.gold + result.goldGained,
+        inventory: [...prev.inventory, ...result.lootDrops],
+        dungeonState: result.nextDungeonState,
+        mana: manaAfterBonus,
+      };
+    });
     setPendingAbility(null);
 
     if (result.monsterDefeated && monster) {
@@ -397,11 +413,11 @@ function App() {
             }}
           />
           <TweakButton
-            label="Reset daily cap"
+            label="Refill mana now"
             onClick={() =>
               setGameState((prev) => ({
                 ...prev,
-                dungeonState: { ...prev.dungeonState, lastAbilityUsedAt: null },
+                mana: initialManaState(Date.now()),
               }))
             }
           />

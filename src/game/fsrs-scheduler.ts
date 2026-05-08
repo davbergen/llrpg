@@ -82,8 +82,19 @@ export function mapOutcomeToRating(outcome: Outcome): Grade {
   return outcome === 'correct' ? Rating.Good : Rating.Again;
 }
 
+const FSRS_S_MIN = 1e-3;
+
+function normalizeCardState(state: CardState, now: number): CardState {
+  // ts-fsrs rejects (difficulty>0, stability<S_MIN) unless the card is also marked New.
+  // A persisted card in this shape (e.g. from an earlier serialization bug) would crash
+  // the lesson-complete flow, so reset it to a fresh card instead of throwing.
+  const degenerate = state.stability < FSRS_S_MIN && (state.difficulty > 0 || state.state !== 'new');
+  return degenerate ? newCardState(now) : state;
+}
+
 export function applyOutcome(state: CardState, outcome: Outcome, now: number): CardState {
-  const result = fsrs.next(toFsrsCard(state), new Date(now), mapOutcomeToRating(outcome));
+  const safe = normalizeCardState(state, now);
+  const result = fsrs.next(toFsrsCard(safe), new Date(now), mapOutcomeToRating(outcome));
   return fromFsrsCard(result.card);
 }
 

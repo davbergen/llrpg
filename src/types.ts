@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
+import type { ManaState } from './game/mana';
 
 export type ClassType = 'mage' | 'warrior' | 'rogue' | 'scholar';
 export type ScreenName = 'onboarding' | 'home' | 'dungeon' | 'lesson' | 'loot' | 'profile';
@@ -51,6 +52,7 @@ export interface Ability {
   tier: AbilityTier;
   label: string;
   baseDamage: number;
+  mpCost: number;
   lessonQuestions: number;
 }
 
@@ -75,7 +77,6 @@ export interface DungeonState {
   dungeonId: string;
   currentMonsterIndex: number;
   currentMonsterHp: number;
-  lastAbilityUsedAt: number | null;
 }
 
 export interface GameState {
@@ -92,7 +93,10 @@ export interface GameState {
   partyMembers: PartyMember[];
   inventory: InventoryItem[];
   dungeonState: DungeonState;
+  mana: ManaState;
 }
+
+export type { ManaState };
 
 export interface Tweaks {
   accentColor: string;
