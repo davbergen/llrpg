@@ -145,6 +145,29 @@ const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen 
         </span>
       </PixelPanel>
 
+      {/* Streak strip */}
+      <PixelPanel
+        dark
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '10px 14px',
+        }}
+      >
+        <span style={{ fontFamily: "'Press Start 2P'", fontSize: 9, color: RPG.textDim }}>
+          STREAK
+        </span>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span style={{ fontFamily: "'Press Start 2P'", fontSize: 11, color: '#ff9a3c' }}>
+            🔥 {gameState.streakState.count}
+          </span>
+          <span style={{ fontFamily: "'Press Start 2P'", fontSize: 11, color: '#4a9edd' }}>
+            ❄ {gameState.streakState.freezes}
+          </span>
+        </div>
+      </PixelPanel>
+
       {/* Active dungeon card */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

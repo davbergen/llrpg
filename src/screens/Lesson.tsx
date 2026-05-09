@@ -35,9 +35,8 @@ function facePromptFontSize(face: SpineFace): number {
 }
 import { VOCAB_SPINE } from '../content/spine';
 import { composeLesson } from '../game/lesson-composer';
-import { applyOutcome, LocalStorageCardStore, newCardState } from '../game/fsrs-scheduler';
-
-const cardStore = new LocalStorageCardStore();
+import { applyOutcome, newCardState, type CardKey, type CardState } from '../game/fsrs-scheduler';
+import { cardStore } from '../game/card-store-singleton';
 
 const DEFAULT_QUESTION_COUNT = 5;
 
@@ -45,6 +44,7 @@ export interface LessonResult {
   accuracy: number;
   correctCount: number;
   totalCount: number;
+  cardSnapshot: Array<[CardKey, CardState | null]>;
 }
 
 interface LessonProps extends ScreenProps {
@@ -63,19 +63,25 @@ const Lesson: React.FC<LessonProps> = ({
   completeDestination = 'home',
   completeLabel = '🏠 HOME',
 }) => {
-  const [state, setState] = useState<LessonState>(() => {
+  const [{ state: initialState, cardSnapshot }] = useState<{
+    state: LessonState;
+    cardSnapshot: Array<[CardKey, CardState | null]>;
+  }>(() => {
     const cards = composeLesson({
       spine: VOCAB_SPINE,
       store: cardStore,
       count: questionCount,
       now: Date.now(),
     });
+    const snapshot = cards.map(
+      (c) => [c.key, cardStore.get(c.key)] as [CardKey, CardState | null],
+    );
     if (cards.length === 0) {
-      // No due, no new — fall back to legacy random draw so the screen never blanks.
-      return createLesson({ pool: VOCAB_SPINE, questionCount });
+      return { state: createLesson({ pool: VOCAB_SPINE, questionCount }), cardSnapshot: [] };
     }
-    return createLesson({ pool: VOCAB_SPINE, questionCount, cards });
+    return { state: createLesson({ pool: VOCAB_SPINE, questionCount, cards }), cardSnapshot: snapshot };
   });
+  const [state, setState] = useState<LessonState>(initialState);
   const [phase, setPhase] = useState<Phase>('question');
   const [lastChoice, setLastChoice] = useState<string | null>(null);
 
@@ -124,6 +130,7 @@ const Lesson: React.FC<LessonProps> = ({
           accuracy: acc,
           correctCount,
           totalCount: next.questions.length,
+          cardSnapshot,
         });
       }
       return;

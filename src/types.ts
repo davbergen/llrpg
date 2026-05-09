@@ -1,6 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { ManaState } from './game/mana';
 import type { SecondaryResources } from './game/secondary-resources';
+import type { StreakState } from './game/streak';
+import type { GemLedger } from './game/gem-ledger';
 
 export type ClassType = 'mage' | 'warrior' | 'priest';
 export type ScreenName = 'onboarding' | 'home' | 'dungeon' | 'lesson' | 'loot' | 'profile';
@@ -92,16 +94,17 @@ export interface GameState {
   maxXp: number;
   level: number;
   gold: number;
-  streak: number;
   questProgress: Record<string, number>;
   partyMembers: PartyMember[];
   inventory: InventoryItem[];
   dungeonState: DungeonState;
   mana: ManaState;
   secondaryResources: SecondaryResources;
+  streakState: StreakState;
+  gems: GemLedger;
 }
 
-export type { ManaState, SecondaryResources };
+export type { ManaState, SecondaryResources, StreakState, GemLedger };
 
 export interface Tweaks {
   accentColor: string;

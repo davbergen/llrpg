@@ -141,7 +141,10 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
               💰 {gameState.gold}
             </span>
             <span style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: '#ff9a3c' }}>
-              🔥 {gameState.streak}
+              🔥 {gameState.streakState.count}
+            </span>
+            <span style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: '#9b5de5' }}>
+              💎 {gameState.gems.balance}
             </span>
             {damageBonus > 0 && (
               <span style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: RPG.green }}>
