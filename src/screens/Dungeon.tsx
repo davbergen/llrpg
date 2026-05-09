@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { ScreenProps } from '../types';
-import { DUNGEON_MONSTERS, DUNGEON_NAME } from '../game/dungeon';
+import { getDungeon, freshProgress } from '../game/dungeon';
+import { calculateDecay } from '../game/decay';
 import { resolveMana, canAffordAbility, initialManaState, MANA_MAX } from '../game/mana';
 import {
   unlockedAbilities,
@@ -25,13 +26,69 @@ function tierColor(ab: ClassAbility): string {
   return RPG.red;
 }
 
-const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbilityChosen }) => {
+const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setGameState, setScreen, onAbilityChosen }) => {
   const { dungeonState } = gameState;
+  const dungeon = getDungeon(dungeonState.activeDungeonId);
+  const monsters = dungeon.monsters;
+  const progress =
+    dungeonState.progress[dungeonState.activeDungeonId] ?? freshProgress(monsters);
+  const monster = monsters[progress.currentMonsterIndex];
+  const cleared = progress.cleared || progress.currentMonsterIndex >= monsters.length;
+  const [decayApplied, setDecayApplied] = useState<number>(0);
+
+  // Apply decay on entry, once per visit, before any combat. Also seed progress
+  // for newly-active dungeons that haven't been entered yet.
+  useEffect(() => {
+    if (cleared || !monster) return;
+    const regen = calculateDecay(
+      {
+        lastActionAt: progress.lastActionAt,
+        currentHp: progress.currentMonsterHp,
+        maxHp: monster.maxHp,
+        isBoss: monster.isBoss,
+      },
+      Date.now(),
+    );
+    setGameState((prev) => {
+      const dId = prev.dungeonState.activeDungeonId;
+      const existing = prev.dungeonState.progress[dId];
+      if (!existing) {
+        // Seed first-entry progress for this dungeon. Decay is 0 for never-visited.
+        return {
+          ...prev,
+          dungeonState: {
+            ...prev.dungeonState,
+            progress: {
+              ...prev.dungeonState.progress,
+              [dId]: freshProgress(monsters),
+            },
+          },
+        };
+      }
+      if (regen <= 0) return prev;
+      return {
+        ...prev,
+        dungeonState: {
+          ...prev.dungeonState,
+          progress: {
+            ...prev.dungeonState.progress,
+            [dId]: {
+              ...existing,
+              currentMonsterHp: Math.min(monster.maxHp, existing.currentMonsterHp + regen),
+              lastActionAt: Date.now(),
+            },
+          },
+        },
+      };
+    });
+    if (regen > 0) setDecayApplied(regen);
+    // Run only on dungeon-entry mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const mana = resolveMana(gameState.mana ?? initialManaState(Date.now()), Date.now());
   const secondary = gameState.secondaryResources ?? emptySecondaryResources();
   const playerHpPct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
-  const monster = DUNGEON_MONSTERS[dungeonState.currentMonsterIndex];
-  const cleared = dungeonState.currentMonsterIndex >= DUNGEON_MONSTERS.length;
   const abilities = unlockedAbilities(hero.classType, gameState.level);
   const outOfMana = abilities.every((ab) => !canAffordAbility(mana, ab.mpCost));
   const secondaryKind = secondaryResourceForClass(hero.classType);
@@ -59,7 +116,7 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
               lineHeight: 1.6,
             }}
           >
-            {DUNGEON_NAME}
+            {dungeon.meta.name}
           </div>
         </PixelPanel>
         <PixelButton onClick={() => setScreen('home')} style={{ width: '100%' }}>
@@ -69,7 +126,7 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
     );
   }
 
-  const hpPct = Math.max(0, (dungeonState.currentMonsterHp / monster.maxHp) * 100);
+  const hpPct = Math.max(0, (progress.currentMonsterHp / monster.maxHp) * 100);
   const manaPct = Math.max(0, (mana.current / MANA_MAX) * 100);
   const secondaryValue =
     secondaryKind === 'rage' ? secondary.rage : secondaryKind === 'faith' ? secondary.faith : 0;
@@ -90,11 +147,26 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <PixelHeader size={11}>{DUNGEON_NAME.toUpperCase()}</PixelHeader>
+        <PixelHeader size={11}>{dungeon.meta.name.toUpperCase()}</PixelHeader>
         <span style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: RPG.textDim }}>
-          {dungeonState.currentMonsterIndex}/{DUNGEON_MONSTERS.length}
+          {progress.currentMonsterIndex}/{monsters.length}
         </span>
       </div>
+
+      {decayApplied > 0 && (
+        <PixelPanel dark style={{ textAlign: 'center', padding: '8px 12px' }}>
+          <div
+            style={{
+              fontFamily: "'Press Start 2P'",
+              fontSize: 8,
+              color: RPG.gold,
+              lineHeight: 1.6,
+            }}
+          >
+            ⏳ YOUR ENEMY HAS RECOVERED (+{decayApplied} HP)
+          </div>
+        </PixelPanel>
+      )}
 
       <PixelPanel
         gold={monster.isBoss}
@@ -122,12 +194,12 @@ const Dungeon: React.FC<DungeonProps> = ({ gameState, hero, setScreen, onAbility
             marginBottom: 10,
           }}
         >
-          {monster.isBoss ? 'BOSS' : `MONSTER ${dungeonState.currentMonsterIndex + 1}`}
+          {monster.isBoss ? 'BOSS' : `MONSTER ${progress.currentMonsterIndex + 1}`}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
           <span style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.red }}>HP</span>
           <span style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.textDim }}>
-            {dungeonState.currentMonsterHp}/{monster.maxHp}
+            {progress.currentMonsterHp}/{monster.maxHp}
           </span>
         </div>
         <div

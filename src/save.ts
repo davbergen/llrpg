@@ -1,8 +1,20 @@
-import type { GameState, Hero } from './types';
+import type { DungeonState, GameState, Hero } from './types';
 import { initialManaState } from './game/mana';
 import { emptySecondaryResources } from './game/secondary-resources';
+import { initialDungeonState } from './game/dungeon';
 
 export const SAVE_KEY = 'llrpg:save:v2';
+
+function migrateDungeonState(raw: unknown): DungeonState {
+  // Slice 17 introduced multi-dungeon progress. Migrate v1 dungeon shape on load.
+  if (raw && typeof raw === 'object') {
+    const r = raw as Record<string, unknown>;
+    if (typeof r.activeDungeonId === 'string' && r.progress && typeof r.progress === 'object') {
+      return raw as DungeonState;
+    }
+  }
+  return initialDungeonState();
+}
 
 export interface PersistedState {
   hero: Hero | null;
@@ -40,6 +52,7 @@ export function loadSave(storage: StorageLike | null = getStorage()): PersistedS
       ...parsed.gameState,
       mana: parsed.gameState.mana ?? initialManaState(Date.now()),
       secondaryResources: parsed.gameState.secondaryResources ?? emptySecondaryResources(),
+      dungeonState: migrateDungeonState(parsed.gameState.dungeonState),
     };
     return { ...parsed, gameState, placementDone: parsed.placementDone ?? false };
   } catch {

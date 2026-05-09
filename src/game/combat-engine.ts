@@ -1,5 +1,11 @@
-import type { DungeonState, InventoryItem, Monster, SecondaryResources } from '../types';
-import { DUNGEON_MONSTERS } from './dungeon';
+import type {
+  DungeonProgress,
+  DungeonState,
+  InventoryItem,
+  Monster,
+  SecondaryResources,
+} from '../types';
+import { getDungeon } from '../content/dungeons';
 import type { ClassAbility } from './class-abilities';
 import {
   canAffordSecondary,
@@ -16,6 +22,8 @@ export interface ApplyAbilityInput {
   lessonAccuracy: number;
   equipmentDamageBonus: number;
   secondaryResources: SecondaryResources;
+  /** Epoch ms; stored on the active dungeon's progress. Defaults to Date.now(). */
+  now?: number;
   rollLoot?: (monster: Monster) => InventoryItem[];
   rollGold?: (monster: Monster) => number;
 }
@@ -42,9 +50,19 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
     secondaryResources,
     rollLoot,
     rollGold,
+    now = Date.now(),
   } = input;
 
-  if (dungeonState.currentMonsterIndex >= DUNGEON_MONSTERS.length) {
+  const dungeon = getDungeon(dungeonState.activeDungeonId);
+  const monsters = dungeon.monsters;
+  const progress = dungeonState.progress[dungeonState.activeDungeonId];
+  if (!progress) {
+    throw new Error(
+      `No progress entry for active dungeon "${dungeonState.activeDungeonId}"`,
+    );
+  }
+
+  if (progress.currentMonsterIndex >= monsters.length) {
     throw new Error('Cannot apply ability: dungeon already cleared');
   }
 
@@ -55,26 +73,37 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
     );
   }
 
-  const monster = DUNGEON_MONSTERS[dungeonState.currentMonsterIndex];
+  const monster = monsters[progress.currentMonsterIndex];
 
   const clampedAccuracy = Math.max(0, Math.min(1, lessonAccuracy));
   const pendingMult = dungeonState.pendingDamageMultiplier ?? 1;
   const rawDamage = (ability.baseDamage + equipmentDamageBonus) * clampedAccuracy * pendingMult;
   const damageDealt = ability.baseDamage > 0 ? Math.round(rawDamage) : 0;
 
-  const monsterHpAfter = Math.max(0, dungeonState.currentMonsterHp - damageDealt);
-  const monsterDefeated = damageDealt > 0 && monsterHpAfter === 0;
+  const hpAfterDamage = Math.max(0, progress.currentMonsterHp - damageDealt);
+  const monsterDefeated = damageDealt > 0 && hpAfterDamage === 0;
+
+  // Boss regen: applied at end of player turn if monster survives.
+  const regen = !monsterDefeated && monster.isBoss ? monster.regenPerTurn ?? 0 : 0;
+  const monsterHpAfter = Math.min(monster.maxHp, hpAfterDamage + regen);
 
   const nextIndex = monsterDefeated
-    ? dungeonState.currentMonsterIndex + 1
-    : dungeonState.currentMonsterIndex;
-  const nextMonster = DUNGEON_MONSTERS[nextIndex];
-  const dungeonCleared = monsterDefeated && monster.isBoss && nextIndex >= DUNGEON_MONSTERS.length;
+    ? progress.currentMonsterIndex + 1
+    : progress.currentMonsterIndex;
+  const nextMonster = monsters[nextIndex];
+  const dungeonCleared = monsterDefeated && monster.isBoss && nextIndex >= monsters.length;
 
   const counterReduction = ability.effects
     .filter((e): e is { kind: 'counter_reduction'; fraction: number } => e.kind === 'counter_reduction')
     .reduce((acc, e) => Math.min(1, acc + e.fraction), 0);
-  const baseCounter = monsterDefeated ? 0 : monster.counterDamage;
+  // Boss enrage: counter scales when boss HP fraction drops below threshold.
+  const enraged =
+    monster.isBoss &&
+    !monsterDefeated &&
+    monster.enrageBelowPct != null &&
+    monsterHpAfter / monster.maxHp < monster.enrageBelowPct;
+  const enrageMult = enraged ? monster.enrageCounterMultiplier ?? 1 : 1;
+  const baseCounter = monsterDefeated ? 0 : monster.counterDamage * enrageMult;
   const counterDamage = Math.round(baseCounter * (1 - counterReduction));
 
   const selfHeal = ability.effects
@@ -89,17 +118,25 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
   const goldGained = monsterDefeated && rollGold ? rollGold(monster) : 0;
   const xpGained = monsterDefeated ? (monster.isBoss ? KILL_XP_BOSS : KILL_XP_REGULAR) : 0;
 
-  // Consumed pending multiplier on any damaging ability; preserved for non-damage abilities.
   const consumedMultiplier = ability.baseDamage > 0;
   const carriedMultiplier = consumedMultiplier
     ? undefined
     : dungeonState.pendingDamageMultiplier;
   const nextPendingMultiplier = queuedMultiplier ?? carriedMultiplier;
 
-  const nextDungeonState: DungeonState = {
-    ...dungeonState,
+  const nextProgress: DungeonProgress = {
     currentMonsterIndex: nextIndex,
     currentMonsterHp: monsterDefeated ? nextMonster?.maxHp ?? 0 : monsterHpAfter,
+    lastActionAt: now,
+    cleared: dungeonCleared,
+  };
+
+  const nextDungeonState: DungeonState = {
+    ...dungeonState,
+    progress: {
+      ...dungeonState.progress,
+      [dungeonState.activeDungeonId]: nextProgress,
+    },
     pendingDamageMultiplier: nextPendingMultiplier,
   };
 
@@ -109,7 +146,6 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
     ability.classType,
     ability.secondaryCost,
   );
-  // Generation only fires when an offensive ability actually connects (damageDealt > 0).
   if (damageDealt > 0) {
     nextSecondaryResources = gainSecondary(
       nextSecondaryResources,

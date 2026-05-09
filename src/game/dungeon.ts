@@ -1,51 +1,47 @@
-import type { DungeonState, Monster } from '../types';
+import type { DungeonProgress, DungeonState, Monster } from '../types';
+import { DUNGEONS, getDungeon } from '../content/dungeons';
 
-export const DUNGEON_ID = 'forest-of-first-words';
-export const DUNGEON_NAME = 'Forest of First Words';
+export { DUNGEONS, getDungeon };
 
-export const DUNGEON_MONSTERS: Monster[] = [
-  {
-    id: 'kana-slime',
-    name: 'Kana Slime',
-    emoji: '🟢',
-    maxHp: 30,
-    isBoss: false,
-    counterDamage: 4,
-    loot: { goldMin: 5, goldMax: 12, itemDropChance: 0.25 },
-  },
-  {
-    id: 'hiragana-bat',
-    name: 'Hiragana Bat',
-    emoji: '🦇',
-    maxHp: 45,
-    isBoss: false,
-    counterDamage: 7,
-    loot: { goldMin: 8, goldMax: 18, itemDropChance: 0.35 },
-  },
-  {
-    id: 'kanji-wolf',
-    name: 'Kanji Wolf',
-    emoji: '🐺',
-    maxHp: 60,
-    isBoss: false,
-    counterDamage: 10,
-    loot: { goldMin: 12, goldMax: 25, itemDropChance: 0.5 },
-  },
-  {
-    id: 'grammar-dragon',
-    name: 'Grammar Dragon',
-    emoji: '🐉',
-    maxHp: 120,
-    isBoss: true,
-    counterDamage: 15,
-    loot: { goldMin: 40, goldMax: 80, itemDropChance: 1, guaranteedItem: true },
-  },
-];
+export function freshProgress(monsters: Monster[]): DungeonProgress {
+  return {
+    currentMonsterIndex: 0,
+    currentMonsterHp: monsters[0]?.maxHp ?? 0,
+    lastActionAt: 0,
+    cleared: false,
+  };
+}
 
 export function initialDungeonState(): DungeonState {
+  const first = DUNGEONS[0];
   return {
-    dungeonId: DUNGEON_ID,
-    currentMonsterIndex: 0,
-    currentMonsterHp: DUNGEON_MONSTERS[0].maxHp,
+    activeDungeonId: first.meta.id,
+    progress: { [first.meta.id]: freshProgress(first.monsters) },
   };
+}
+
+export function getActiveProgress(state: DungeonState): DungeonProgress {
+  const p = state.progress[state.activeDungeonId];
+  if (p) return p;
+  // Lazy-init progress for an unlocked dungeon being entered for the first time.
+  const dungeon = getDungeon(state.activeDungeonId);
+  return freshProgress(dungeon.monsters);
+}
+
+export function getActiveMonsters(state: DungeonState): Monster[] {
+  return getDungeon(state.activeDungeonId).monsters;
+}
+
+/** Returns true if the dungeon is unlocked given the current progress map. */
+export function isDungeonUnlocked(
+  dungeonId: string,
+  progress: Record<string, DungeonProgress>,
+): boolean {
+  const d = getDungeon(dungeonId);
+  if (d.meta.unlocksFrom == null) return true;
+  return progress[d.meta.unlocksFrom]?.cleared === true;
+}
+
+export function unlockedDungeons(progress: Record<string, DungeonProgress>): typeof DUNGEONS {
+  return DUNGEONS.filter((d) => isDungeonUnlocked(d.meta.id, progress));
 }
