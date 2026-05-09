@@ -2,6 +2,8 @@ import type { Equipment, GameState, Tweaks } from './types';
 import { initialDungeonState } from './game/dungeon';
 import { initialManaState } from './game/mana';
 import { emptySecondaryResources } from './game/secondary-resources';
+import { initialStreakState } from './game/streak';
+import { initialGemLedger } from './game/gem-ledger';
 
 export const TWEAK_DEFAULTS: Tweaks = {
   accentColor: '#e6a817',
@@ -26,11 +28,12 @@ export const INITIAL_STATE: GameState = {
   maxXp: 100,
   level: 1,
   gold: 0,
-  streak: 0,
   questProgress: {},
   partyMembers: [],
   inventory: [],
   dungeonState: initialDungeonState(),
   mana: initialManaState(Date.now()),
   secondaryResources: emptySecondaryResources(),
+  streakState: initialStreakState(),
+  gems: initialGemLedger(),
 };

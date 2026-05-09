@@ -7,10 +7,20 @@ import { applyAbility, clampPlayerHp } from './game/combat-engine';
 import { findAbilityById } from './game/class-abilities';
 import { emptySecondaryResources, canAffordSecondary } from './game/secondary-resources';
 import { resolveMana, spendMana, canAffordAbility, applyFirstLessonBonus, initialManaState } from './game/mana';
+import { tickStreak, streakBuff, initialStreakState } from './game/streak';
+import { creditGems, GEMS_PER_BOSS, GEMS_PER_STREAK_MILESTONE, initialGemLedger } from './game/gem-ledger';
+import {
+  applyRetry,
+  canRetry,
+  revertCardStore,
+  type RetrySnapshot,
+  GEMS_RETRY_COST,
+} from './game/retry';
+import { cardStore as cardStoreSingleton } from './game/card-store-singleton';
 import { addXp } from './game/progression';
 import { rollBossLoot, rollMonsterGold, rollMonsterLoot } from './game/loot';
 import { calcStats } from './game/stats';
-import { NavBar } from './components/rpg';
+import { NavBar, RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from './components/rpg';
 import {
   OnboardingWelcome,
   OnboardingClass,
@@ -46,6 +56,8 @@ function App() {
   const [showTweaks, setShowTweaks] = useState(false);
   const [pendingAbility, setPendingAbility] = useState<string | null>(null);
   const [pendingLoot, setPendingLoot] = useState<LootReward | null>(null);
+  const [pendingSnapshot, setPendingSnapshot] = useState<RetrySnapshot | null>(null);
+  const [retryPrompt, setRetryPrompt] = useState<{ snapshot: RetrySnapshot; abilityId: string } | null>(null);
   const [authSkipped, setAuthSkipped] = useState(false);
   const [placementDone, setPlacementDone] = useState<boolean>(
     initialSave?.placementDone ?? !!initialSave?.hero,
@@ -122,12 +134,18 @@ function App() {
     if (!ability) return;
     const resources = gameState.secondaryResources ?? emptySecondaryResources();
     if (!canAffordSecondary(resources, ability.classType, ability.secondaryCost)) return;
-    setGameState((prev) => {
-      const baseMana = prev.mana ?? initialManaState(Date.now());
-      const resolved = resolveMana(baseMana, Date.now());
-      if (!canAffordAbility(resolved, ability.mpCost)) return prev;
-      return { ...prev, mana: spendMana(resolved, ability.mpCost) };
+    const baseMana = gameState.mana ?? initialManaState(Date.now());
+    const resolvedMana = resolveMana(baseMana, Date.now());
+    if (!canAffordAbility(resolvedMana, ability.mpCost)) return;
+    // Snapshot pre-lesson state so a 5-gem retry can fully revert it.
+    setPendingSnapshot({
+      hp: gameState.hp,
+      mana: resolvedMana,
+      dungeonState: gameState.dungeonState,
+      secondaryResources: resources,
+      cards: [],
     });
+    setGameState((prev) => ({ ...prev, mana: spendMana(resolvedMana, ability.mpCost) }));
     setPendingAbility(abilityId);
     navigate('lesson');
   };
@@ -135,23 +153,30 @@ function App() {
   const handleLessonComplete = ({
     accuracy,
     correctCount,
+    cardSnapshot,
   }: {
     accuracy: number;
     correctCount: number;
     totalCount: number;
+    cardSnapshot: Array<[string, import('./game/fsrs-scheduler').CardState | null]>;
   }) => {
     if (!pendingAbility) return;
     const ability = findAbilityById(pendingAbility);
     if (!ability) return;
+    const snapshotForRetry: RetrySnapshot | null = pendingSnapshot
+      ? { ...pendingSnapshot, cards: cardSnapshot }
+      : null;
     const activeMonsters = getActiveMonsters(gameState.dungeonState);
     const activeProgress = gameState.dungeonState.progress[gameState.dungeonState.activeDungeonId];
     const monster = activeProgress ? activeMonsters[activeProgress.currentMonsterIndex] : undefined;
+    const streakState = gameState.streakState ?? initialStreakState();
     const result = applyAbility({
       dungeonState: gameState.dungeonState,
       ability,
       secondaryResources: gameState.secondaryResources ?? emptySecondaryResources(),
       lessonAccuracy: accuracy,
       equipmentDamageBonus: calcStats(hero!, hero!.equipment, gameState.level).damageBonus,
+      streakBuff: streakBuff(streakState.count),
       rollLoot: monster ? (m) => (m.isBoss ? rollBossLoot() : rollMonsterLoot(m)) : undefined,
       rollGold: monster ? (m) => rollMonsterGold(m) : undefined,
     });
@@ -175,8 +200,23 @@ function App() {
       ? { ...result.nextDungeonState, pendingDamageMultiplier: undefined }
       : result.nextDungeonState;
 
+    const now = Date.now();
+    const tickResult = tickStreak(streakState, now);
+    let nextLedger = gameState.gems ?? initialGemLedger();
+    if (result.monsterDefeated && monster?.isBoss) {
+      nextLedger = creditGems(nextLedger, GEMS_PER_BOSS, 'boss_kill', now);
+    }
+    if (tickResult.milestonesCrossed > 0) {
+      nextLedger = creditGems(
+        nextLedger,
+        GEMS_PER_STREAK_MILESTONE * tickResult.milestonesCrossed,
+        'streak_milestone',
+        now,
+      );
+    }
+
     setGameState((prev) => {
-      const baseMana = prev.mana ?? initialManaState(Date.now());
+      const baseMana = prev.mana ?? initialManaState(now);
       const manaAfterBonus = baseMana.firstLessonBonusUsedToday
         ? baseMana
         : applyFirstLessonBonus(baseMana);
@@ -192,9 +232,24 @@ function App() {
         dungeonState: dungeonAfterRun,
         mana: manaAfterBonus,
         secondaryResources: resourcesAfterRun,
+        streakState: tickResult.state,
+        gems: nextLedger,
       };
     });
     setPendingAbility(null);
+
+    // Offer retry on a failed session before navigating away.
+    // Skip if the session somehow killed a monster — would require reverting loot/xp.
+    if (
+      snapshotForRetry &&
+      !result.monsterDefeated &&
+      canRetry({ ledger: nextLedger, alreadyUsed: false, accuracy })
+    ) {
+      setRetryPrompt({ snapshot: snapshotForRetry, abilityId: ability.id });
+      setPendingSnapshot(null);
+      return;
+    }
+    setPendingSnapshot(null);
 
     if (result.monsterDefeated && monster) {
       setPendingLoot({
@@ -211,6 +266,29 @@ function App() {
       setPendingLoot(null);
       navigate('dungeon');
     }
+  };
+
+  const handleRetryAccept = () => {
+    if (!retryPrompt) return;
+    const now = Date.now();
+    revertCardStore(retryPrompt.snapshot, cardStoreSingleton);
+    const reverted = applyRetry(retryPrompt.snapshot, gameState.gems ?? initialGemLedger(), now);
+    setGameState((prev) => ({
+      ...prev,
+      hp: reverted.hp,
+      mana: reverted.mana,
+      dungeonState: reverted.dungeonState,
+      secondaryResources: reverted.secondaryResources,
+      gems: reverted.ledger,
+    }));
+    setRetryPrompt(null);
+    setPendingAbility(null);
+    navigate('dungeon');
+  };
+
+  const handleRetryDecline = () => {
+    setRetryPrompt(null);
+    navigate('dungeon');
   };
 
   const handleLootContinue = () => {
@@ -350,6 +428,13 @@ function App() {
               <NavBar screen={screen} setScreen={navigate} />
             </>
           )}
+          {retryPrompt && (
+            <RetryModal
+              gemBalance={gameState.gems?.balance ?? 0}
+              onAccept={handleRetryAccept}
+              onDecline={handleRetryDecline}
+            />
+          )}
         </div>
 
         {/* Home indicator */}
@@ -466,6 +551,70 @@ function App() {
         </TweakSection>
       </TweaksPanel>
     </>
+  );
+}
+
+interface RetryModalProps {
+  gemBalance: number;
+  onAccept: () => void;
+  onDecline: () => void;
+}
+
+function RetryModal({ gemBalance, onAccept, onDecline }: RetryModalProps) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'rgba(0,0,0,0.8)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        zIndex: 100,
+      }}
+    >
+      <PixelPanel gold style={{ width: '100%', maxWidth: 320 }}>
+        <PixelHeader size={11}>LESSON FAILED</PixelHeader>
+        <div
+          style={{
+            fontFamily: "'Courier Prime', monospace",
+            fontSize: 12,
+            color: RPG.text,
+            lineHeight: 1.5,
+            marginBottom: 14,
+          }}
+        >
+          You scored under 50%. Spend {GEMS_RETRY_COST} gems to retry — your mana, HP, and card
+          progress will be restored.
+        </div>
+        <div
+          style={{
+            ...pixelBorderStyle(RPG.border, RPG.panelDark),
+            padding: '8px 10px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
+          <span style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: RPG.textDim }}>
+            BALANCE
+          </span>
+          <span style={{ fontFamily: "'Press Start 2P'", fontSize: 11, color: RPG.purple }}>
+            💎 {gemBalance}
+          </span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <PixelButton onClick={onAccept} variant="green" style={{ width: '100%' }}>
+            💎 RETRY ({GEMS_RETRY_COST})
+          </PixelButton>
+          <PixelButton onClick={onDecline} variant="grey" style={{ width: '100%' }}>
+            CONTINUE
+          </PixelButton>
+        </div>
+      </PixelPanel>
+    </div>
   );
 }
 

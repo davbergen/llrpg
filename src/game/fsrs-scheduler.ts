@@ -124,6 +124,7 @@ export interface CardStore {
   set(key: CardKey, state: CardState): void;
   has(key: CardKey): boolean;
   entries(): Array<[CardKey, CardState]>;
+  delete(key: CardKey): void;
 }
 
 export class InMemoryCardStore implements CardStore {
@@ -143,6 +144,10 @@ export class InMemoryCardStore implements CardStore {
 
   entries(): Array<[CardKey, CardState]> {
     return Array.from(this.map.entries());
+  }
+
+  delete(key: CardKey): void {
+    this.map.delete(key);
   }
 }
 
@@ -189,5 +194,10 @@ export class LocalStorageCardStore implements CardStore {
 
   entries(): Array<[CardKey, CardState]> {
     return Array.from(this.map.entries());
+  }
+
+  delete(key: CardKey): void {
+    this.map.delete(key);
+    this.persist();
   }
 }

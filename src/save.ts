@@ -2,6 +2,8 @@ import type { DungeonState, GameState, Hero } from './types';
 import { initialManaState } from './game/mana';
 import { emptySecondaryResources } from './game/secondary-resources';
 import { initialDungeonState } from './game/dungeon';
+import { initialStreakState } from './game/streak';
+import { initialGemLedger } from './game/gem-ledger';
 
 export const SAVE_KEY = 'llrpg:save:v2';
 
@@ -53,6 +55,8 @@ export function loadSave(storage: StorageLike | null = getStorage()): PersistedS
       mana: parsed.gameState.mana ?? initialManaState(Date.now()),
       secondaryResources: parsed.gameState.secondaryResources ?? emptySecondaryResources(),
       dungeonState: migrateDungeonState(parsed.gameState.dungeonState),
+      streakState: parsed.gameState.streakState ?? initialStreakState(),
+      gems: parsed.gameState.gems ?? initialGemLedger(),
     };
     return { ...parsed, gameState, placementDone: parsed.placementDone ?? false };
   } catch {

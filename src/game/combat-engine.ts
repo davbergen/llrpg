@@ -22,6 +22,8 @@ export interface ApplyAbilityInput {
   lessonAccuracy: number;
   equipmentDamageBonus: number;
   secondaryResources: SecondaryResources;
+  /** Streak buff multiplier additive — e.g. 0.07 for a 7-day streak. Defaults to 0. */
+  streakBuff?: number;
   /** Epoch ms; stored on the active dungeon's progress. Defaults to Date.now(). */
   now?: number;
   rollLoot?: (monster: Monster) => InventoryItem[];
@@ -50,6 +52,7 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
     secondaryResources,
     rollLoot,
     rollGold,
+    streakBuff = 0,
     now = Date.now(),
   } = input;
 
@@ -77,7 +80,9 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
 
   const clampedAccuracy = Math.max(0, Math.min(1, lessonAccuracy));
   const pendingMult = dungeonState.pendingDamageMultiplier ?? 1;
-  const rawDamage = (ability.baseDamage + equipmentDamageBonus) * clampedAccuracy * pendingMult;
+  const streakMult = 1 + Math.max(0, streakBuff);
+  const rawDamage =
+    (ability.baseDamage + equipmentDamageBonus) * clampedAccuracy * streakMult * pendingMult;
   const damageDealt = ability.baseDamage > 0 ? Math.round(rawDamage) : 0;
 
   const hpAfterDamage = Math.max(0, progress.currentMonsterHp - damageDealt);
