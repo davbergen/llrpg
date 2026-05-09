@@ -61,12 +61,24 @@ export interface Monster {
   isBoss: boolean;
   counterDamage: number;
   loot: MonsterLootEntry;
+  /** Boss heals this much HP at the end of each player turn (after damage applied). */
+  regenPerTurn?: number;
+  /** When boss HP fraction drops below this, counter damage is multiplied by `enrageCounterMultiplier`. */
+  enrageBelowPct?: number;
+  enrageCounterMultiplier?: number;
+}
+
+export interface DungeonProgress {
+  currentMonsterIndex: number;
+  currentMonsterHp: number;
+  /** Epoch ms of the most recent action against this dungeon. 0 = never visited. */
+  lastActionAt: number;
+  cleared: boolean;
 }
 
 export interface DungeonState {
-  dungeonId: string;
-  currentMonsterIndex: number;
-  currentMonsterHp: number;
+  activeDungeonId: string;
+  progress: Record<string, DungeonProgress>;
   /** Damage-buff multiplier queued by the previous ability, consumed on the next damaging ability. */
   pendingDamageMultiplier?: number;
 }

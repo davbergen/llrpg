@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadSave, saveSave, wipeSave } from './save';
-import { DUNGEON_MONSTERS } from './game/dungeon';
+import { getActiveMonsters } from './game/dungeon';
 import { applyAbility, clampPlayerHp } from './game/combat-engine';
 import { findAbilityById } from './game/class-abilities';
 import { emptySecondaryResources, canAffordSecondary } from './game/secondary-resources';
@@ -143,7 +143,9 @@ function App() {
     if (!pendingAbility) return;
     const ability = findAbilityById(pendingAbility);
     if (!ability) return;
-    const monster = DUNGEON_MONSTERS[gameState.dungeonState.currentMonsterIndex];
+    const activeMonsters = getActiveMonsters(gameState.dungeonState);
+    const activeProgress = gameState.dungeonState.progress[gameState.dungeonState.activeDungeonId];
+    const monster = activeProgress ? activeMonsters[activeProgress.currentMonsterIndex] : undefined;
     const result = applyAbility({
       dungeonState: gameState.dungeonState,
       ability,

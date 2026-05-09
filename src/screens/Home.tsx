@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { ScreenProps } from '../types';
-import { DUNGEON_MONSTERS, DUNGEON_NAME } from '../game/dungeon';
+import { DUNGEONS, getDungeon, isDungeonUnlocked, freshProgress } from '../game/dungeon';
 import {
   RPG,
   PixelPanel,
@@ -20,6 +20,7 @@ const classColors: Record<string, string> = {
 const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen }) => {
   const { hp, maxHp, xp, maxXp, level, gold, dungeonState } = gameState;
   const heroColor = classColors[hero.classType] ?? RPG.gold;
+  const [showSelect, setShowSelect] = useState(false);
 
   useEffect(() => {
     if (hp < maxHp) {
@@ -29,14 +30,43 @@ const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const cleared = dungeonState.currentMonsterIndex >= DUNGEON_MONSTERS.length;
-  const progress = Math.min(dungeonState.currentMonsterIndex, DUNGEON_MONSTERS.length);
+  const activeDungeon = getDungeon(dungeonState.activeDungeonId);
+  const activeProgress =
+    dungeonState.progress[dungeonState.activeDungeonId] ?? freshProgress(activeDungeon.monsters);
+  const totalMonsters = activeDungeon.monsters.length;
+  const cleared = activeProgress.cleared;
+  const progress = Math.min(activeProgress.currentMonsterIndex, totalMonsters);
+  const dungeon1Cleared = dungeonState.progress[DUNGEONS[0].meta.id]?.cleared === true;
+
   const ctaLabel = cleared
     ? 'DUNGEON CLEARED ✓'
-    : dungeonState.currentMonsterIndex === 0 &&
-        dungeonState.currentMonsterHp === DUNGEON_MONSTERS[0].maxHp
+    : activeProgress.currentMonsterIndex === 0 &&
+        activeProgress.currentMonsterHp === activeDungeon.monsters[0].maxHp &&
+        activeProgress.lastActionAt === 0
       ? '▶ ENTER DUNGEON'
       : '▶ CONTINUE DUNGEON';
+
+  const handlePick = (dungeonId: string) => {
+    setGameState((prev) => {
+      const existing = prev.dungeonState.progress[dungeonId];
+      const dungeon = getDungeon(dungeonId);
+      return {
+        ...prev,
+        dungeonState: {
+          ...prev.dungeonState,
+          activeDungeonId: dungeonId,
+          progress: existing
+            ? prev.dungeonState.progress
+            : {
+                ...prev.dungeonState.progress,
+                [dungeonId]: freshProgress(dungeon.monsters),
+              },
+          pendingDamageMultiplier: undefined,
+        },
+      };
+    });
+    setShowSelect(false);
+  };
 
   return (
     <div
@@ -115,12 +145,29 @@ const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen 
         </span>
       </PixelPanel>
 
-      {/* Dungeon card */}
+      {/* Active dungeon card */}
       <div>
-        <PixelHeader size={10}>🏰 CURRENT DUNGEON</PixelHeader>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <PixelHeader size={10}>🏰 CURRENT DUNGEON</PixelHeader>
+          {dungeon1Cleared && (
+            <button
+              onClick={() => setShowSelect((v) => !v)}
+              style={{
+                fontFamily: "'Press Start 2P'",
+                fontSize: 7,
+                color: RPG.gold,
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {showSelect ? 'CLOSE ▲' : 'CHANGE ▼'}
+            </button>
+          )}
+        </div>
         <PixelPanel style={{ padding: 14 }}>
           <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'center' }}>
-            <div style={{ fontSize: 32 }}>🌲</div>
+            <div style={{ fontSize: 32 }}>{activeDungeon.meta.sprite}</div>
             <div style={{ flex: 1 }}>
               <div
                 style={{
@@ -130,7 +177,7 @@ const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen 
                   marginBottom: 4,
                 }}
               >
-                {DUNGEON_NAME}
+                {activeDungeon.meta.name}
               </div>
               <div
                 style={{
@@ -139,7 +186,7 @@ const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen 
                   color: RPG.textDim,
                 }}
               >
-                {progress}/{DUNGEON_MONSTERS.length} CLEARED
+                {progress}/{totalMonsters} CLEARED
               </div>
             </div>
           </div>
@@ -154,7 +201,7 @@ const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen 
           >
             <div
               style={{
-                width: `${(progress / DUNGEON_MONSTERS.length) * 100}%`,
+                width: `${(progress / totalMonsters) * 100}%`,
                 height: '100%',
                 background: cleared ? RPG.green : RPG.gold,
                 transition: 'width 0.4s',
@@ -171,6 +218,68 @@ const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen 
           </PixelButton>
         </PixelPanel>
       </div>
+
+      {/* Dungeon select (shown after Dungeon 1 cleared) */}
+      {showSelect && dungeon1Cleared && (
+        <div>
+          <PixelHeader size={10}>🗺 SELECT DUNGEON</PixelHeader>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {DUNGEONS.map((d) => {
+              const unlocked = isDungeonUnlocked(d.meta.id, dungeonState.progress);
+              const dProg = dungeonState.progress[d.meta.id];
+              const dCleared = dProg?.cleared === true;
+              const isActive = d.meta.id === dungeonState.activeDungeonId;
+              return (
+                <button
+                  key={d.meta.id}
+                  onClick={() => unlocked && handlePick(d.meta.id)}
+                  disabled={!unlocked}
+                  style={{
+                    background: isActive ? RPG.panelDark : '#0f0f1e',
+                    border: `2px solid ${isActive ? RPG.gold : RPG.border}`,
+                    padding: '10px 12px',
+                    cursor: unlocked ? 'pointer' : 'not-allowed',
+                    opacity: unlocked ? 1 : 0.45,
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ fontSize: 24 }}>{d.meta.sprite}</div>
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        fontFamily: "'Press Start 2P'",
+                        fontSize: 9,
+                        color: unlocked ? RPG.text : RPG.textDim,
+                      }}
+                    >
+                      {d.meta.name}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "'Press Start 2P'",
+                        fontSize: 7,
+                        color: RPG.textDim,
+                        marginTop: 4,
+                      }}
+                    >
+                      {!unlocked
+                        ? '🔒 LOCKED'
+                        : dCleared
+                          ? '✓ CLEARED'
+                          : isActive
+                            ? '★ ACTIVE'
+                            : 'AVAILABLE'}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
