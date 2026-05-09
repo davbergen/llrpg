@@ -57,6 +57,7 @@ export function loadSave(storage: StorageLike | null = getStorage()): PersistedS
       dungeonState: migrateDungeonState(parsed.gameState.dungeonState),
       streakState: parsed.gameState.streakState ?? initialStreakState(),
       gems: parsed.gameState.gems ?? initialGemLedger(),
+      shop: parsed.gameState.shop ?? { date: null, rerollCount: 0, purchasedIds: [] },
     };
     return { ...parsed, gameState, placementDone: parsed.placementDone ?? false };
   } catch {

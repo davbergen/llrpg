@@ -36,4 +36,5 @@ export const INITIAL_STATE: GameState = {
   secondaryResources: emptySecondaryResources(),
   streakState: initialStreakState(),
   gems: initialGemLedger(),
+  shop: { date: null, rerollCount: 0, purchasedIds: [] },
 };

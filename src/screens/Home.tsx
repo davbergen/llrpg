@@ -127,7 +127,7 @@ const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen 
         </div>
       </PixelPanel>
 
-      {/* Gold strip */}
+      {/* Gold strip + shop entry */}
       <PixelPanel
         dark
         style={{
@@ -135,14 +135,18 @@ const Home: React.FC<ScreenProps> = ({ hero, gameState, setGameState, setScreen 
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '10px 14px',
+          gap: 10,
         }}
       >
         <span style={{ fontFamily: "'Press Start 2P'", fontSize: 9, color: RPG.textDim }}>
           GOLD
         </span>
-        <span style={{ fontFamily: "'Press Start 2P'", fontSize: 12, color: RPG.gold }}>
+        <span style={{ flex: 1, fontFamily: "'Press Start 2P'", fontSize: 12, color: RPG.gold, textAlign: 'right' }}>
           💰 {gold}
         </span>
+        <PixelButton small variant="gold" onClick={() => setScreen('shop')}>
+          🛒 SHOP
+        </PixelButton>
       </PixelPanel>
 
       {/* Streak strip */}
