@@ -56,8 +56,8 @@ name: Radical Titan
 sprite: 🛡️
 maxHp: 260
 counterDmg: 22
-goldMin: 110
-goldMax: 200
+goldMin: 80
+goldMax: 100
 itemDropChance: 1
 guaranteedItem: true
 enrageBelowPct: 0.5

@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { ScreenProps, ClassType, InventoryItem, ItemRarity, EquipmentSlot } from '../types';
 import {
   RPG,
   pixelBorderStyle,
   PixelHeader,
+  PixelPanel,
+  PixelButton,
   XPBar,
   CharSprite,
   ItemIcon,
 } from '../components/rpg';
 import { calcStats, RARITY_DAMAGE_BONUS } from '../game/stats';
+import { sellValue } from '../game/loot-tables-v2';
 
 const classColors: Record<ClassType, string> = {
   mage: '#9b5de5',
@@ -45,8 +48,9 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
   const heroColor = classColors[hero.classType] ?? RPG.gold;
   const abilities = classAbilities[hero.classType] ?? classAbilities.mage;
   const { damageBonus } = calcStats(hero, hero.equipment, gameState.level);
+  const [sellTarget, setSellTarget] = useState<{ index: number; item: InventoryItem } | null>(null);
 
-  const equipItem = (item: InventoryItem) => {
+  const equipItem = (item: InventoryItem, index: number) => {
     if (!item.slot) return;
     const slot = item.slot;
     const displaced = hero.equipment[slot];
@@ -55,10 +59,24 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
       equipment: { ...prev!.equipment, [slot]: item },
     }));
     setGameState((prev) => {
-      const next = prev.inventory.filter((i) => i.id !== item.id);
+      const next = prev.inventory.filter((_, i) => i !== index);
       if (displaced) next.push(displaced);
       return { ...prev, inventory: next };
     });
+  };
+
+  const sellItem = (index: number) => {
+    setGameState((prev) => {
+      const item = prev.inventory[index];
+      if (!item) return prev;
+      const value = sellValue(item);
+      return {
+        ...prev,
+        gold: prev.gold + value,
+        inventory: prev.inventory.filter((_, i) => i !== index),
+      };
+    });
+    setSellTarget(null);
   };
 
   const unequipSlot = (slot: EquipmentSlot) => {
@@ -301,15 +319,12 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
               return (
                 <div
                   key={item.id + i}
-                  onClick={() => canEquip && equipItem(item)}
                   style={{
                     ...pixelBorderStyle(rarityColors[item.rarity] ?? RPG.border, RPG.panelDark),
                     padding: '10px 12px',
                     display: 'flex',
                     gap: 12,
                     alignItems: 'center',
-                    cursor: canEquip ? 'pointer' : 'default',
-                    opacity: 1,
                   }}
                 >
                   <ItemIcon type={item.type} size={40} />
@@ -362,19 +377,35 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
                       {item.rarity.toUpperCase()}
                     </div>
                     {canEquip && (
-                      <div
+                      <button
+                        onClick={() => equipItem(item, i)}
                         style={{
                           fontFamily: "'Press Start 2P'",
                           fontSize: 6,
                           color: RPG.gold,
-                          padding: '2px 5px',
+                          padding: '3px 6px',
                           border: `1px solid ${RPG.gold}`,
                           background: '#1a1200',
+                          cursor: 'pointer',
                         }}
                       >
                         EQUIP
-                      </div>
+                      </button>
                     )}
+                    <button
+                      onClick={() => setSellTarget({ index: i, item })}
+                      style={{
+                        fontFamily: "'Press Start 2P'",
+                        fontSize: 6,
+                        color: RPG.green,
+                        padding: '3px 6px',
+                        border: `1px solid ${RPG.green}`,
+                        background: '#0a2a0a',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      SELL {sellValue(item)}g
+                    </button>
                   </div>
                 </div>
               );
@@ -393,6 +424,52 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
           </div>
         )}
       </div>
+
+      {sellTarget && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+            zIndex: 100,
+          }}
+        >
+          <PixelPanel gold style={{ width: '100%', maxWidth: 320 }}>
+            <PixelHeader size={11}>SELL ITEM</PixelHeader>
+            <div
+              style={{
+                fontFamily: "'Courier Prime', monospace",
+                fontSize: 12,
+                color: RPG.text,
+                lineHeight: 1.5,
+                marginBottom: 14,
+              }}
+            >
+              Sell <b>{sellTarget.item.name}</b> for <b>{sellValue(sellTarget.item)}g</b>?
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <PixelButton
+                onClick={() => sellItem(sellTarget.index)}
+                variant="green"
+                style={{ width: '100%' }}
+              >
+                💰 SELL ({sellValue(sellTarget.item)}g)
+              </PixelButton>
+              <PixelButton
+                onClick={() => setSellTarget(null)}
+                variant="grey"
+                style={{ width: '100%' }}
+              >
+                CANCEL
+              </PixelButton>
+            </div>
+          </PixelPanel>
+        </div>
+      )}
     </div>
   );
 };

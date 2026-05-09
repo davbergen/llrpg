@@ -32,8 +32,11 @@ import Dungeon from './screens/Dungeon';
 import Lesson from './screens/Lesson';
 import Loot, { type LootReward } from './screens/Loot';
 import Profile from './screens/Profile';
+import Shop from './screens/Shop';
 import SignIn from './screens/SignIn';
 import { useAuth, ensureHeroRow, signOut } from './auth';
+import { getOrCreateGuestId } from './guestId';
+import { STREAK_MILESTONE_GOLD } from './game/streak-milestones';
 
 const XP_PER_CORRECT_ANSWER = 5;
 import {
@@ -66,6 +69,8 @@ function App() {
   const [pendingClass, setPendingClass] = useState<ClassType | null>(null);
 
   const auth = useAuth();
+  const guestIdRef = useRef<string>(getOrCreateGuestId());
+  const shopUserId = auth.status === 'signed-in' ? auth.user.id : guestIdRef.current;
 
   useEffect(() => {
     saveSave({ hero, gameState, placementDone });
@@ -206,6 +211,7 @@ function App() {
     if (result.monsterDefeated && monster?.isBoss) {
       nextLedger = creditGems(nextLedger, GEMS_PER_BOSS, 'boss_kill', now);
     }
+    let milestoneGold = 0;
     if (tickResult.milestonesCrossed > 0) {
       nextLedger = creditGems(
         nextLedger,
@@ -213,6 +219,7 @@ function App() {
         'streak_milestone',
         now,
       );
+      milestoneGold = STREAK_MILESTONE_GOLD * tickResult.milestonesCrossed;
     }
 
     setGameState((prev) => {
@@ -227,7 +234,7 @@ function App() {
         xp: progress.xp,
         level: progress.level,
         maxXp: progress.maxXp,
-        gold: prev.gold + result.goldGained,
+        gold: prev.gold + result.goldGained + milestoneGold,
         inventory: [...prev.inventory, ...result.lootDrops],
         dungeonState: dungeonAfterRun,
         mana: manaAfterBonus,
@@ -424,6 +431,7 @@ function App() {
                   />
                 )}
                 {screen === 'profile' && <Profile {...screenProps} />}
+                {screen === 'shop' && <Shop {...screenProps} userId={shopUserId} />}
               </div>
               <NavBar screen={screen} setScreen={navigate} />
             </>
@@ -496,6 +504,7 @@ function App() {
           <TweakButton label="→ Lesson" onClick={() => navigate('lesson')} />
           <TweakButton label="→ Loot" onClick={() => navigate('loot')} />
           <TweakButton label="→ Profile" onClick={() => navigate('profile')} />
+          <TweakButton label="→ Shop" onClick={() => navigate('shop')} />
           <TweakButton
             label="↩ Onboarding"
             onClick={() => {

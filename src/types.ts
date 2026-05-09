@@ -5,7 +5,7 @@ import type { StreakState } from './game/streak';
 import type { GemLedger } from './game/gem-ledger';
 
 export type ClassType = 'mage' | 'warrior' | 'priest';
-export type ScreenName = 'onboarding' | 'home' | 'dungeon' | 'lesson' | 'loot' | 'profile';
+export type ScreenName = 'onboarding' | 'home' | 'dungeon' | 'lesson' | 'loot' | 'profile' | 'shop';
 
 export type EquipmentSlot = 'head' | 'chest' | 'legs';
 
@@ -85,6 +85,14 @@ export interface DungeonState {
   pendingDamageMultiplier?: number;
 }
 
+export interface ShopState {
+  /** Day-key (YYYY-MM-DD) of the most recent visit. Reset clears purchases + rerolls. */
+  date: string | null;
+  rerollCount: number;
+  /** Item ids purchased today — removed from the visible shop until tomorrow. */
+  purchasedIds: string[];
+}
+
 export interface GameState {
   hp: number;
   maxHp: number;
@@ -102,6 +110,7 @@ export interface GameState {
   secondaryResources: SecondaryResources;
   streakState: StreakState;
   gems: GemLedger;
+  shop: ShopState;
 }
 
 export type { ManaState, SecondaryResources, StreakState, GemLedger };

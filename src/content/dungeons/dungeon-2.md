@@ -53,8 +53,8 @@ name: Tense Lich
 sprite: 💀
 maxHp: 180
 counterDmg: 18
-goldMin: 70
-goldMax: 130
+goldMin: 65
+goldMax: 90
 itemDropChance: 1
 guaranteedItem: true
 regenPerTurn: 8

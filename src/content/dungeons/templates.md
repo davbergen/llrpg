@@ -10,7 +10,7 @@ sprite: 🟢
 baseHp: 30
 counterDmg: 4
 goldMin: 5
-goldMax: 12
+goldMax: 8
 itemDropChance: 0.25
 ---
 ---
@@ -18,8 +18,8 @@ id: bat
 sprite: 🦇
 baseHp: 45
 counterDmg: 7
-goldMin: 8
-goldMax: 18
+goldMin: 6
+goldMax: 10
 itemDropChance: 0.35
 ---
 ---
@@ -27,8 +27,8 @@ id: wolf
 sprite: 🐺
 baseHp: 60
 counterDmg: 10
-goldMin: 12
-goldMax: 25
+goldMin: 7
+goldMax: 12
 itemDropChance: 0.5
 ---
 ---
@@ -36,8 +36,8 @@ id: golem
 sprite: 🗿
 baseHp: 80
 counterDmg: 12
-goldMin: 18
-goldMax: 32
+goldMin: 9
+goldMax: 13
 itemDropChance: 0.55
 ---
 ---
@@ -45,8 +45,8 @@ id: spectre
 sprite: 👻
 baseHp: 70
 counterDmg: 14
-goldMin: 20
-goldMax: 36
+goldMin: 10
+goldMax: 14
 itemDropChance: 0.6
 ---
 ---
@@ -54,7 +54,7 @@ id: imp
 sprite: 👹
 baseHp: 90
 counterDmg: 16
-goldMin: 24
-goldMax: 42
+goldMin: 11
+goldMax: 15
 itemDropChance: 0.65
 ---

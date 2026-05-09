@@ -51,8 +51,8 @@ name: Grammar Dragon
 sprite: 🐉
 maxHp: 120
 counterDmg: 15
-goldMin: 40
-goldMax: 80
+goldMin: 50
+goldMax: 75
 itemDropChance: 1
 guaranteedItem: true
 ---
