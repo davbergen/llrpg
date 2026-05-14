@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
-import { loadSave, saveSave, wipeSave } from './save';
+import { loadLocalSync, localOnlyRepo, authedRepo, WriteThroughRepo, type Repo } from './repos';
 import { getActiveMonsters } from './game/dungeon';
 import { applyAbility, clampPlayerHp } from './game/combat-engine';
 import { findAbilityById } from './game/class-abilities';
@@ -35,7 +35,7 @@ import Profile from './screens/Profile';
 import Shop from './screens/Shop';
 import SignIn from './screens/SignIn';
 import { useAuth, ensureHeroRow, signOut } from './auth';
-import { getOrCreateGuestId } from './guestId';
+import { getOrCreateGuestId } from './repos/guestId';
 import { STREAK_MILESTONE_GOLD } from './game/streak-milestones';
 
 const XP_PER_CORRECT_ANSWER = 5;
@@ -50,7 +50,9 @@ import {
 } from './tweaks';
 
 function App() {
-  const initialSave = useRef(loadSave()).current;
+  const initialSave = useRef(loadLocalSync()).current;
+  const repoRef = useRef<Repo>(localOnlyRepo());
+  const hydratedForUserRef = useRef<string | null>(null);
   const [screen, setScreen] = useState<ScreenName>(initialSave?.hero ? 'home' : 'onboarding');
   const [hero, setHero] = useState<Hero | null>(initialSave?.hero ?? null);
   const [gameState, setGameState] = useState<GameState>(initialSave?.gameState ?? INITIAL_STATE);
@@ -73,20 +75,60 @@ function App() {
   const shopUserId = auth.status === 'signed-in' ? auth.user.id : guestIdRef.current;
 
   useEffect(() => {
-    saveSave({ hero, gameState, placementDone });
+    void repoRef.current.save({ hero, gameState, placementDone });
   }, [hero, gameState, placementDone]);
 
   const authUserId = auth.status === 'signed-in' ? auth.user.id : null;
   useEffect(() => {
+    let cancelled = false;
     if (authUserId) {
-      ensureHeroRow(authUserId).catch((e) => {
-        console.error('Failed to bootstrap heroes row:', e);
-      });
+      if (hydratedForUserRef.current === authUserId) return;
+      const repo = authedRepo(authUserId);
+      repoRef.current = repo;
+      (async () => {
+        try {
+          await ensureHeroRow(authUserId);
+          const remote = await repo.hydrateFromRemote();
+          if (cancelled) return;
+          if (remote) {
+            // Server wins on reconnect — hydrate local state from remote.
+            setHero(remote.hero);
+            setGameState(remote.gameState);
+            setPlacementDone(remote.placementDone ?? !!remote.hero);
+          } else {
+            // First sign-in for this account — push the local profile up.
+            await repo.pushLocalToRemote();
+          }
+          hydratedForUserRef.current = authUserId;
+        } catch (e) {
+          console.error('Repo hydration failed:', e);
+        }
+      })();
+    } else {
+      repoRef.current = localOnlyRepo();
+      hydratedForUserRef.current = null;
     }
+    return () => {
+      cancelled = true;
+    };
   }, [authUserId]);
 
+  // Best-effort flush of any queued remote write when the tab regains focus / network.
+  useEffect(() => {
+    const flush = () => {
+      const repo = repoRef.current;
+      if (repo instanceof WriteThroughRepo) void repo.flush();
+    };
+    window.addEventListener('online', flush);
+    window.addEventListener('focus', flush);
+    return () => {
+      window.removeEventListener('online', flush);
+      window.removeEventListener('focus', flush);
+    };
+  }, []);
+
   const handleWipeSave = () => {
-    wipeSave();
+    void repoRef.current.wipe();
     setHero(null);
     setGameState(INITIAL_STATE);
     setPlacementDone(false);

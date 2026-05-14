@@ -18,7 +18,8 @@ import {
   recordOutcome,
   type PlacementSession,
 } from '../game/placement';
-import { LocalStorageCardStore } from '../game/fsrs-scheduler';
+import { PersistentCardStore } from '../game/fsrs-scheduler';
+import { getCardStorage } from '../repos/cardStorage';
 
 interface PlacementProps {
   onComplete: () => void;
@@ -26,7 +27,7 @@ interface PlacementProps {
 
 type Phase = 'intro' | 'probe' | 'feedback';
 
-const cardStore = new LocalStorageCardStore();
+const cardStore = new PersistentCardStore(getCardStorage());
 
 export default function Placement({ onComplete }: PlacementProps) {
   const [session, setSession] = useState<PlacementSession>(() =>

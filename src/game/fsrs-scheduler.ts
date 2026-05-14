@@ -151,16 +151,24 @@ export class InMemoryCardStore implements CardStore {
   }
 }
 
-export class LocalStorageCardStore implements CardStore {
+export interface CardStoreStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+export class PersistentCardStore implements CardStore {
   private map: Map<CardKey, CardState>;
 
-  constructor(private storageKey: string = 'fsrs.cards.v1') {
-    this.map = LocalStorageCardStore.load(storageKey);
+  constructor(
+    private readonly storage: CardStoreStorage,
+    private readonly storageKey: string = 'fsrs.cards.v1',
+  ) {
+    this.map = PersistentCardStore.load(storage, storageKey);
   }
 
-  private static load(storageKey: string): Map<CardKey, CardState> {
+  private static load(storage: CardStoreStorage, storageKey: string): Map<CardKey, CardState> {
     try {
-      const raw = localStorage.getItem(storageKey);
+      const raw = storage.getItem(storageKey);
       if (!raw) return new Map();
       const obj = JSON.parse(raw) as Record<string, CardState>;
       return new Map(Object.entries(obj));
@@ -173,9 +181,9 @@ export class LocalStorageCardStore implements CardStore {
     try {
       const obj: Record<string, CardState> = {};
       for (const [k, v] of this.map) obj[k] = v;
-      localStorage.setItem(this.storageKey, JSON.stringify(obj));
+      this.storage.setItem(this.storageKey, JSON.stringify(obj));
     } catch {
-      // localStorage unavailable / quota exceeded — silently drop
+      // storage unavailable / quota exceeded — silently drop
     }
   }
 
