@@ -12,6 +12,7 @@ import {
 } from '../components/rpg';
 import { calcStats, RARITY_DAMAGE_BONUS } from '../game/stats';
 import { sellValue } from '../game/loot-tables-v2';
+import AccountSection from './AccountSection';
 
 const classColors: Record<ClassType, string> = {
   mage: '#9b5de5',
@@ -424,6 +425,8 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
           </div>
         )}
       </div>
+
+      <AccountSection />
 
       {sellTarget && (
         <div

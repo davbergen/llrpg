@@ -37,6 +37,7 @@ import SignIn from './screens/SignIn';
 import { useAuth, ensureHeroRow, signOut } from './auth';
 import { getOrCreateGuestId } from './repos/guestId';
 import { STREAK_MILESTONE_GOLD } from './game/streak-milestones';
+import { useScheduledDeletion } from './gdpr/useScheduledDeletion';
 
 const XP_PER_CORRECT_ANSWER = 5;
 import {
@@ -73,6 +74,7 @@ function App() {
   const auth = useAuth();
   const guestIdRef = useRef<string>(getOrCreateGuestId());
   const shopUserId = auth.status === 'signed-in' ? auth.user.id : guestIdRef.current;
+  const deletion = useScheduledDeletion(auth.status === 'signed-in' ? auth.user.id : null);
 
   useEffect(() => {
     void repoRef.current.save({ hero, gameState, placementDone });
@@ -437,6 +439,14 @@ function App() {
             fontSize: `${tweaks.fontSize}%`,
           }}
         >
+          {deletion.scheduled && auth.status === 'signed-in' && (
+            <DeletionBanner
+              runAfter={deletion.scheduled.run_after}
+              onCancel={() => {
+                deletion.cancel().catch(() => deletion.refresh());
+              }}
+            />
+          )}
           {auth.status === 'signed-out' && !authSkipped ? (
             <SignIn onSkip={() => setAuthSkipped(true)} />
           ) : hero === null && !welcomeAcknowledged && !placementDone ? (
@@ -602,6 +612,53 @@ function App() {
         </TweakSection>
       </TweaksPanel>
     </>
+  );
+}
+
+interface DeletionBannerProps {
+  runAfter: string;
+  onCancel: () => void;
+}
+
+function DeletionBanner({ runAfter, onCancel }: DeletionBannerProps) {
+  return (
+    <div
+      style={{
+        background: '#3a0a0a',
+        borderBottom: `2px solid ${RPG.red}`,
+        padding: '8px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          fontFamily: "'Courier Prime', monospace",
+          fontSize: 10,
+          color: RPG.text,
+          lineHeight: 1.4,
+        }}
+      >
+        Deletion at <b>{new Date(runAfter).toLocaleString()}</b>
+      </div>
+      <button
+        onClick={onCancel}
+        style={{
+          fontFamily: "'Press Start 2P', monospace",
+          fontSize: 7,
+          color: RPG.text,
+          background: RPG.red,
+          border: `1px solid ${RPG.text}`,
+          padding: '5px 8px',
+          cursor: 'pointer',
+        }}
+      >
+        CANCEL
+      </button>
+    </div>
   );
 }
 
