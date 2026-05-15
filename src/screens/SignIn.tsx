@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { PixelPanel, PixelHeader, RPG, pixelBorderStyle } from '../components/rpg';
 import { signInWithGoogle } from '../auth';
+import Terms from '../pages/Terms';
+import Privacy from '../pages/Privacy';
 
 interface SignInProps {
   onSkip: () => void;
@@ -9,6 +11,10 @@ interface SignInProps {
 export default function SignIn({ onSkip }: SignInProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [legal, setLegal] = useState<null | 'terms' | 'privacy'>(null);
+
+  if (legal === 'terms') return <Terms onClose={() => setLegal(null)} />;
+  if (legal === 'privacy') return <Privacy onClose={() => setLegal(null)} />;
 
   const handleSignIn = async () => {
     setBusy(true);
@@ -94,6 +100,45 @@ export default function SignIn({ onSkip }: SignInProps) {
       >
         Continue without account →
       </button>
+
+      <div
+        style={{
+          display: 'flex',
+          gap: 12,
+          fontFamily: "'Courier Prime', monospace",
+          fontSize: 10,
+          color: RPG.textDim,
+        }}
+      >
+        <button
+          onClick={() => setLegal('terms')}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: RPG.textDim,
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+          }}
+        >
+          Terms
+        </button>
+        <button
+          onClick={() => setLegal('privacy')}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: RPG.textDim,
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+          }}
+        >
+          Privacy
+        </button>
+      </div>
     </div>
   );
 }
