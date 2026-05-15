@@ -32,6 +32,7 @@ import Dungeon from './screens/Dungeon';
 import Lesson from './screens/Lesson';
 import Loot, { type LootReward } from './screens/Loot';
 import Profile from './screens/Profile';
+import ConsentGate from './screens/ConsentGate';
 import Shop from './screens/Shop';
 import SignIn from './screens/SignIn';
 import { useAuth, ensureHeroRow, signOut } from './auth';
@@ -70,6 +71,9 @@ function App() {
   );
   const [welcomeAcknowledged, setWelcomeAcknowledged] = useState(false);
   const [pendingClass, setPendingClass] = useState<ClassType | null>(null);
+  const [telemetryConsent, setTelemetryConsent] = useState<boolean | null>(
+    initialSave?.telemetryConsent ?? null,
+  );
 
   const auth = useAuth();
   const guestIdRef = useRef<string>(getOrCreateGuestId());
@@ -77,8 +81,8 @@ function App() {
   const deletion = useScheduledDeletion(auth.status === 'signed-in' ? auth.user.id : null);
 
   useEffect(() => {
-    void repoRef.current.save({ hero, gameState, placementDone });
-  }, [hero, gameState, placementDone]);
+    void repoRef.current.save({ hero, gameState, placementDone, telemetryConsent });
+  }, [hero, gameState, placementDone, telemetryConsent]);
 
   const authUserId = auth.status === 'signed-in' ? auth.user.id : null;
   useEffect(() => {
@@ -97,6 +101,7 @@ function App() {
             setHero(remote.hero);
             setGameState(remote.gameState);
             setPlacementDone(remote.placementDone ?? !!remote.hero);
+            setTelemetryConsent(remote.telemetryConsent ?? null);
           } else {
             // First sign-in for this account — push the local profile up.
             await repo.pushLocalToRemote();
@@ -136,6 +141,7 @@ function App() {
     setPlacementDone(false);
     setWelcomeAcknowledged(false);
     setPendingClass(null);
+    setTelemetryConsent(null);
     setScreen('onboarding');
   };
 
@@ -457,6 +463,8 @@ function App() {
             <OnboardingClass onPick={setPendingClass} />
           ) : hero === null ? (
             <OnboardingName classType={pendingClass!} onComplete={handleOnboardingComplete} />
+          ) : telemetryConsent === null ? (
+            <ConsentGate onAnswer={setTelemetryConsent} />
           ) : (
             <>
               <div

@@ -9,6 +9,8 @@ export interface PersistedState {
   hero: Hero | null;
   gameState: GameState;
   placementDone?: boolean;
+  /** null = not asked yet; true/false = the player's answer to the telemetry consent prompt. */
+  telemetryConsent?: boolean | null;
 }
 
 export interface Repo {
@@ -28,7 +30,12 @@ export function hydratePersisted(parsed: PersistedState): PersistedState {
     gems: parsed.gameState.gems ?? initialGemLedger(),
     shop: parsed.gameState.shop ?? { date: null, rerollCount: 0, purchasedIds: [] },
   };
-  return { ...parsed, gameState, placementDone: parsed.placementDone ?? false };
+  return {
+    ...parsed,
+    gameState,
+    placementDone: parsed.placementDone ?? false,
+    telemetryConsent: parsed.telemetryConsent ?? null,
+  };
 }
 
 function hydrateDungeonState(raw: unknown): GameState['dungeonState'] {
