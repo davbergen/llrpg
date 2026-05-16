@@ -22,6 +22,7 @@ const sampleState: PersistedState = {
   hero: { name: 'Aiko', classType: 'mage', equipment: EMPTY_EQUIPMENT },
   gameState: INITIAL_STATE,
   placementDone: false,
+  telemetryConsent: null,
 };
 
 class FakeRemote implements Repo {
@@ -70,6 +71,32 @@ describe('LocalAdapter', () => {
     await repo.save(sampleState);
     await repo.wipe();
     expect(await repo.load()).toBeNull();
+  });
+
+  it('round-trips telemetryConsent (true / false / null)', async () => {
+    const storage = makeStorage();
+    const repo = new LocalAdapter(SAVE_KEY, storage);
+
+    await repo.save({ ...sampleState, telemetryConsent: true });
+    expect((await repo.load())?.telemetryConsent).toBe(true);
+
+    await repo.save({ ...sampleState, telemetryConsent: false });
+    expect((await repo.load())?.telemetryConsent).toBe(false);
+
+    await repo.save({ ...sampleState, telemetryConsent: null });
+    expect((await repo.load())?.telemetryConsent).toBeNull();
+  });
+
+  it('backfills telemetryConsent to null for pre-slice-23 saves', async () => {
+    const storage = makeStorage();
+    // Simulate an older save written before the field existed.
+    storage.setItem(
+      SAVE_KEY,
+      JSON.stringify({ hero: sampleState.hero, gameState: sampleState.gameState }),
+    );
+    const repo = new LocalAdapter(SAVE_KEY, storage);
+    const loaded = await repo.load();
+    expect(loaded?.telemetryConsent).toBeNull();
   });
 
   it('loadLocalSync reads the same payload synchronously', async () => {

@@ -41,6 +41,7 @@ export class SupabaseAdapter implements Repo {
           gold: state.gameState.gold,
           gems: state.gameState.gems?.balance ?? 0,
           streak_days: state.gameState.streakState?.count ?? 0,
+          telemetry_consent: state.telemetryConsent ?? null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' },
