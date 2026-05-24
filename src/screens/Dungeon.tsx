@@ -35,25 +35,72 @@ interface DungeonProps extends ScreenProps {
 }
 
 type AnimationKind = 'melee' | 'projectile';
+type Trajectory = 'straight' | 'arc-low' | 'arc-high';
 
-function projectileTint(label: string): string {
-  const l = label.toLowerCase();
-  if (l.includes('fire')) return '#ff7a3a';
-  if (l.includes('frost') || l.includes('ice')) return '#4a9edd';
-  if (l.includes('arcane')) return '#9b5de5';
-  return '#9b5de5';
+interface AnimSpec {
+  kind: AnimationKind;
+  // Melee:
+  lungePx?: number;
+  // Projectile:
+  tint?: string;
+  size?: number;
+  travelMs?: number;
+  trajectory?: Trajectory;
+  // Shared timings (optional overrides):
+  totalMs?: number;
 }
 
-function animationKindFor(ab: ClassAbility): AnimationKind {
-  return effectIcon(ab) === 'sword' ? 'melee' : 'projectile';
-}
+const DEFAULT_MELEE: Required<Pick<AnimSpec, 'lungePx' | 'totalMs'>> & { impactMs: number } = {
+  lungePx: 200,
+  totalMs: 600,
+  impactMs: 250,
+};
 
-const MELEE_IMPACT_MS = 250;
-const MELEE_TOTAL_MS = 600;
-const PROJECTILE_TRAVEL_MS = 400;
-const PROJECTILE_TOTAL_MS = 600;
+const DEFAULT_PROJECTILE: Required<
+  Pick<AnimSpec, 'tint' | 'size' | 'travelMs' | 'trajectory' | 'totalMs'>
+> = {
+  tint: '#9b5de5',
+  size: 14,
+  travelMs: 400,
+  trajectory: 'straight',
+  totalMs: 600,
+};
+
 const REDUCED_TOTAL_MS = 100;
 const REDUCED_IMPACT_MS = 50;
+
+const ABILITY_ANIM: Record<string, AnimSpec> = {
+  // ── Mage — all projectile, varied size/speed/trajectory/tint ──
+  mage_spark:           { kind: 'projectile', tint: '#ffe066', size: 8,  travelMs: 240, trajectory: 'straight', totalMs: 520 },
+  mage_fireball:        { kind: 'projectile', tint: '#ff7a3a', size: 18, travelMs: 420, trajectory: 'arc-low' },
+  mage_frostbolt:       { kind: 'projectile', tint: '#4a9edd', size: 14, travelMs: 360, trajectory: 'straight' },
+  mage_arcane_pulse:    { kind: 'projectile', tint: '#9b5de5', size: 22, travelMs: 500, trajectory: 'straight', totalMs: 700 },
+  mage_meteor:          { kind: 'projectile', tint: '#ff5a2a', size: 30, travelMs: 620, trajectory: 'arc-high', totalMs: 820 },
+  mage_chain_lightning: { kind: 'projectile', tint: '#a8e0ff', size: 12, travelMs: 220, trajectory: 'straight', totalMs: 480 },
+  mage_cataclysm:       { kind: 'projectile', tint: '#e64a8a', size: 34, travelMs: 680, trajectory: 'arc-high', totalMs: 880 },
+
+  // ── Warrior — all melee, varied lunge + total ──
+  warrior_slash:           { kind: 'melee', lungePx: 180, totalMs: 500 },
+  warrior_cleave:          { kind: 'melee', lungePx: 210, totalMs: 620 },
+  warrior_reckless_strike: { kind: 'melee', lungePx: 240, totalMs: 540 },
+  warrior_bash:            { kind: 'melee', lungePx: 200, totalMs: 720 },
+  warrior_execute:         { kind: 'melee', lungePx: 260, totalMs: 780 },
+
+  // ── Priest — damaging spells as holy projectiles ──
+  priest_smite:          { kind: 'projectile', tint: '#fff2a8', size: 12, travelMs: 300, trajectory: 'straight' },
+  priest_holy_bolt:      { kind: 'projectile', tint: '#fff2a8', size: 16, travelMs: 380, trajectory: 'straight' },
+  priest_radiant_strike: { kind: 'projectile', tint: '#ffe066', size: 18, travelMs: 360, trajectory: 'arc-low' },
+  priest_judgment:       { kind: 'projectile', tint: '#ffec8a', size: 26, travelMs: 520, trajectory: 'arc-high', totalMs: 720 },
+};
+
+function animSpecFor(ab: ClassAbility): AnimSpec {
+  return ABILITY_ANIM[ab.id] ?? { kind: 'projectile' };
+}
+
+function meleeImpactMs(totalMs: number): number {
+  // Impact lands during the held-forward portion of meleeLunge (~42%).
+  return Math.round(totalMs * 0.42);
+}
 
 type EffectIcon = 'sword' | 'staff' | 'heart' | 'shield';
 
@@ -165,14 +212,21 @@ const Dungeon: React.FC<DungeonProps> = ({
   const [animTick, setAnimTick] = useState(0);
   const animatingAbility =
     pendingAnimation ? findAbilityById(pendingAnimation.abilityId) ?? null : null;
-  const animKind: AnimationKind | null = animatingAbility
-    ? animationKindFor(animatingAbility)
-    : null;
-  const animTint = animatingAbility ? projectileTint(animatingAbility.label) : '#9b5de5';
+  const animSpec: AnimSpec | null = animatingAbility ? animSpecFor(animatingAbility) : null;
+  const animKind: AnimationKind | null = animSpec?.kind ?? null;
   const isAnimating = pendingAnimation != null;
 
+  // Resolved per-ability timings (with sensible defaults).
+  const meleeLunge = animSpec?.lungePx ?? DEFAULT_MELEE.lungePx;
+  const meleeTotal = animSpec?.totalMs ?? DEFAULT_MELEE.totalMs;
+  const projTint = animSpec?.tint ?? DEFAULT_PROJECTILE.tint;
+  const projSize = animSpec?.size ?? DEFAULT_PROJECTILE.size;
+  const projTravel = animSpec?.travelMs ?? DEFAULT_PROJECTILE.travelMs;
+  const projTrajectory = animSpec?.trajectory ?? DEFAULT_PROJECTILE.trajectory;
+  const projTotal = animSpec?.totalMs ?? DEFAULT_PROJECTILE.totalMs;
+
   useEffect(() => {
-    if (!pendingAnimation) {
+    if (!pendingAnimation || !animSpec) {
       setAnimPhase(null);
       return;
     }
@@ -181,14 +235,14 @@ const Dungeon: React.FC<DungeonProps> = ({
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const impactAt = reduced
       ? REDUCED_IMPACT_MS
-      : animKind === 'projectile'
-        ? PROJECTILE_TRAVEL_MS
-        : MELEE_IMPACT_MS;
+      : animSpec.kind === 'projectile'
+        ? projTravel
+        : meleeImpactMs(meleeTotal);
     const totalAt = reduced
       ? REDUCED_TOTAL_MS
-      : animKind === 'projectile'
-        ? PROJECTILE_TOTAL_MS
-        : MELEE_TOTAL_MS;
+      : animSpec.kind === 'projectile'
+        ? projTotal
+        : meleeTotal;
     setAnimPhase('travel');
     setAnimTick((t) => t + 1);
     const t1 = window.setTimeout(() => setAnimPhase('impact'), impactAt);
@@ -200,7 +254,7 @@ const Dungeon: React.FC<DungeonProps> = ({
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
-    // animKind is derived from pendingAnimation; safe to depend on the trigger only.
+    // Resolved timings derive from pendingAnimation; depend on the trigger only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAnimation]);
 
@@ -284,13 +338,21 @@ const Dungeon: React.FC<DungeonProps> = ({
         @keyframes fightSlideUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes meleeLunge {
           0% { transform: translateX(0); }
-          42% { transform: translateX(200px); }
-          58% { transform: translateX(200px); }
+          42% { transform: translateX(var(--lunge-x, 200px)); }
+          58% { transform: translateX(var(--lunge-x, 200px)); }
           100% { transform: translateX(0); }
         }
         @keyframes projectileFly {
-          from { transform: translate(0, 0) scale(1); opacity: 1; }
-          to { transform: translate(var(--projectile-dx), var(--projectile-dy)) scale(0.9); opacity: 1; }
+          0% { transform: translate(0, 0) scale(1); opacity: 1; }
+          50% {
+            transform:
+              translate(calc(var(--projectile-dx) * 0.5), var(--projectile-mid-dy, 0px))
+              scale(1.05);
+          }
+          100% {
+            transform: translate(var(--projectile-dx), var(--projectile-dy)) scale(0.9);
+            opacity: 1;
+          }
         }
         @keyframes impactFlash {
           0% { opacity: 0; }
@@ -486,32 +548,39 @@ const Dungeon: React.FC<DungeonProps> = ({
             top: 130,
             left: 20,
             filter: `drop-shadow(0 0 16px ${palette.glow})`,
+            ['--lunge-x' as string]: `${meleeLunge}px`,
             animation:
               isAnimating && animKind === 'melee'
-                ? `meleeLunge ${MELEE_TOTAL_MS}ms ease-out`
+                ? `meleeLunge ${meleeTotal}ms ease-out`
                 : undefined,
           }}
         >
           <PixelGrid grid={heroSprite} scale={9} />
         </div>
 
-        {/* Projectile orb (staff archetype) */}
+        {/* Projectile orb */}
         {isAnimating && animKind === 'projectile' && animPhase === 'travel' && (
           <div
             key={`proj-${animTick}`}
             style={{
               position: 'absolute',
               // Start near hero center, travel to monster center.
-              top: 168,
-              left: 70,
-              width: 14,
-              height: 14,
+              top: 168 - projSize / 2,
+              left: 70 - projSize / 2,
+              width: projSize,
+              height: projSize,
               borderRadius: '50%',
-              background: animTint,
-              boxShadow: `0 0 12px ${animTint}, 0 0 24px ${animTint}aa, inset 0 0 6px #ffffffaa`,
+              background: projTint,
+              boxShadow: `0 0 ${projSize * 0.9}px ${projTint}, 0 0 ${projSize * 1.8}px ${projTint}aa, inset 0 0 ${Math.max(4, projSize * 0.4)}px #ffffffaa`,
               ['--projectile-dx' as string]: '240px',
               ['--projectile-dy' as string]: '-60px',
-              animation: `projectileFly ${PROJECTILE_TRAVEL_MS}ms linear forwards`,
+              ['--projectile-mid-dy' as string]:
+                projTrajectory === 'arc-high'
+                  ? '-140px'
+                  : projTrajectory === 'arc-low'
+                    ? '-90px'
+                    : '-30px',
+              animation: `projectileFly ${projTravel}ms linear forwards`,
               zIndex: 3,
               pointerEvents: 'none',
             }}
@@ -546,8 +615,8 @@ const Dungeon: React.FC<DungeonProps> = ({
                   width: 40,
                   height: 40,
                   borderRadius: '50%',
-                  border: `2px solid ${animTint}`,
-                  boxShadow: `0 0 16px ${animTint}aa`,
+                  border: `2px solid ${projTint}`,
+                  boxShadow: `0 0 16px ${projTint}aa`,
                   animation: 'impactRing 320ms ease-out forwards',
                   zIndex: 3,
                   pointerEvents: 'none',
