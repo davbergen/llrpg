@@ -73,7 +73,10 @@ const REDUCED_TOTAL_MS = 100;
 const REDUCED_IMPACT_MS = 50;
 
 const KILL_TOTAL_MS = 380;
-const COUNTER_TOTAL_MS = 320;
+const COUNTER_TOTAL_MS = 560;
+// Within the counter phase: the monster winds up, then lunges. Hero
+// shake + damage floater fire on impact, not at phase start.
+const COUNTER_IMPACT_MS = 260;
 const REDUCED_KILL_MS = 80;
 const REDUCED_COUNTER_MS = 80;
 
@@ -460,10 +463,15 @@ const Dungeon: React.FC<DungeonProps> = ({
           80% { transform: translateX(3px); }
         }
         @keyframes monsterCounterLunge {
-          0% { transform: translateX(0); }
-          40% { transform: translateX(-20px) scale(1.04); }
-          60% { transform: translateX(-20px) scale(1.04); }
-          100% { transform: translateX(0); }
+          0% { transform: translateX(0) scale(1); }
+          /* wind-up: small pull back + grow */
+          35% { transform: translateX(12px) scale(1.06); }
+          /* lunge: snap forward */
+          50% { transform: translateX(-72px) scale(1.06); }
+          /* hold at impact */
+          62% { transform: translateX(-72px) scale(1.06); }
+          /* ease back */
+          100% { transform: translateX(0) scale(1); }
         }
         @keyframes monsterDie {
           0% { transform: scale(1); opacity: 1; filter: brightness(1); }
@@ -679,7 +687,7 @@ const Dungeon: React.FC<DungeonProps> = ({
             ['--lunge-x' as string]: `${meleeLunge}px`,
             animation:
               animPhase === 'counter'
-                ? `heroShake 280ms steps(4, end)`
+                ? `heroShake 260ms steps(4, end) ${COUNTER_IMPACT_MS}ms both`
                 : isAnimating && animKind === 'melee' && animPhase !== 'kill'
                   ? `meleeLunge ${meleeTotal}ms ease-out`
                   : undefined,
@@ -870,7 +878,7 @@ const Dungeon: React.FC<DungeonProps> = ({
               fontSize: 14,
               color: RPG.red,
               textShadow: '0 0 6px #000, 1px 1px 0 #000, -1px -1px 0 #000',
-              animation: 'damageFloat 600ms ease-out forwards',
+              animation: `damageFloat 600ms ease-out ${COUNTER_IMPACT_MS}ms both`,
               zIndex: 4,
               pointerEvents: 'none',
             }}
