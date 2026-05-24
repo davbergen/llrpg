@@ -149,10 +149,10 @@ describe('questionsForMpCost (cost→questions mapping)', () => {
 });
 
 describe('CLASS_ABILITIES question counts', () => {
-  it('every ability declares a sane lesson question count (1..4)', () => {
+  it('every ability declares a sane lesson question count (5..20)', () => {
     for (const ab of CLASS_ABILITIES) {
-      expect(ab.lessonQuestions).toBeGreaterThanOrEqual(1);
-      expect(ab.lessonQuestions).toBeLessThanOrEqual(4);
+      expect(ab.lessonQuestions).toBeGreaterThanOrEqual(5);
+      expect(ab.lessonQuestions).toBeLessThanOrEqual(20);
     }
   });
 });

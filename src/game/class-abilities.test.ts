@@ -56,12 +56,12 @@ describe('class-abilities table', () => {
     expect(secondaryResourceForClass('mage')).toBeNull();
   });
 
-  it('lessonQuestionsForMp follows the slice-15 mapping', () => {
-    expect(lessonQuestionsForMp(1)).toBe(1);
-    expect(lessonQuestionsForMp(2)).toBe(2);
-    expect(lessonQuestionsForMp(3)).toBe(3);
-    expect(lessonQuestionsForMp(4)).toBe(3);
-    expect(lessonQuestionsForMp(5)).toBe(4);
+  it('lessonQuestionsForMp follows the tiered mapping (5/10/15/20)', () => {
+    expect(lessonQuestionsForMp(1)).toBe(5);
+    expect(lessonQuestionsForMp(2)).toBe(10);
+    expect(lessonQuestionsForMp(3)).toBe(15);
+    expect(lessonQuestionsForMp(4)).toBe(15);
+    expect(lessonQuestionsForMp(5)).toBe(20);
   });
 
   describe('unlockedAbilities', () => {
