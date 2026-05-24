@@ -228,6 +228,10 @@ const Dungeon: React.FC<DungeonProps> = ({
     'travel' | 'impact' | 'kill' | 'counter' | null
   >(null);
   const [animTick, setAnimTick] = useState(0);
+  // Sticky once the kill animation begins — used to keep the monster + HP
+  // panel hidden while App commits state and the screen fades to loot, so
+  // the *next* monster doesn't flash in for a frame after the kill.
+  const [killActive, setKillActive] = useState(false);
   const animatingAbility =
     pendingAnimation ? findAbilityById(pendingAnimation.abilityId) ?? null : null;
   const animSpec: AnimSpec | null = animatingAbility ? animSpecFor(animatingAbility) : null;
@@ -246,6 +250,7 @@ const Dungeon: React.FC<DungeonProps> = ({
   useEffect(() => {
     if (!pendingAnimation || !animSpec) {
       setAnimPhase(null);
+      setKillActive(false);
       return;
     }
     const reduced =
@@ -279,6 +284,7 @@ const Dungeon: React.FC<DungeonProps> = ({
       window.setTimeout(() => {
         if (pendingAnimation.killed && pendingAnimation.damage > 0) {
           setAnimPhase('kill');
+          setKillActive(true);
           setAnimTick((t) => t + 1);
           timeouts.push(
             window.setTimeout(() => {
@@ -455,8 +461,8 @@ const Dungeon: React.FC<DungeonProps> = ({
         }
         @keyframes monsterCounterLunge {
           0% { transform: translateX(0); }
-          35% { transform: translateX(-46px); }
-          65% { transform: translateX(-46px); }
+          40% { transform: translateX(-20px) scale(1.04); }
+          60% { transform: translateX(-20px) scale(1.04); }
           100% { transform: translateX(0); }
         }
         @keyframes monsterDie {
@@ -577,6 +583,7 @@ const Dungeon: React.FC<DungeonProps> = ({
             filter: `drop-shadow(0 0 20px ${monsterGlow}aa)`,
             fontSize: 96,
             lineHeight: 1,
+            visibility: killActive && animPhase !== 'kill' ? 'hidden' : 'visible',
           }}
         >
           <div
@@ -618,6 +625,7 @@ const Dungeon: React.FC<DungeonProps> = ({
             gap: 3,
             zIndex: 1,
             maxWidth: 160,
+            visibility: killActive && animPhase !== 'kill' ? 'hidden' : 'visible',
           }}
         >
           <div
