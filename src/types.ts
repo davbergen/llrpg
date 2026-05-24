@@ -121,6 +121,7 @@ export interface Tweaks {
   fontSize: number;
   showPartyQuest: boolean;
   heroName: string;
+  debugMode: boolean;
 }
 
 export interface ScreenProps {

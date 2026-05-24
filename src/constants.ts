@@ -11,6 +11,7 @@ export const TWEAK_DEFAULTS: Tweaks = {
   fontSize: 100,
   showPartyQuest: true,
   heroName: '',
+  debugMode: false,
 };
 
 export const EMPTY_EQUIPMENT: Equipment = {
