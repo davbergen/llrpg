@@ -65,6 +65,13 @@ function App() {
   const [pendingLoot, setPendingLoot] = useState<LootReward | null>(null);
   const [pendingSnapshot, setPendingSnapshot] = useState<RetrySnapshot | null>(null);
   const [retryPrompt, setRetryPrompt] = useState<{ snapshot: RetrySnapshot; abilityId: string } | null>(null);
+  const [pendingAnimation, setPendingAnimation] = useState<{
+    abilityId: string;
+    damage: number;
+    counterDamage: number;
+    killed: boolean;
+  } | null>(null);
+  const pendingCommitRef = useRef<(() => void) | null>(null);
   const [authSkipped, setAuthSkipped] = useState(false);
   const [placementDone, setPlacementDone] = useState<boolean>(
     initialSave?.placementDone ?? !!initialSave?.hero,
@@ -300,57 +307,81 @@ function App() {
       milestoneGold = STREAK_MILESTONE_GOLD * tickResult.milestonesCrossed;
     }
 
-    setGameState((prev) => {
-      const baseMana = prev.mana ?? initialManaState(now);
-      const manaAfterBonus = baseMana.firstLessonBonusUsedToday
-        ? baseMana
-        : applyFirstLessonBonus(baseMana);
-      return {
-        ...prev,
-        hp: nextHp,
-        maxHp: nextMaxHp,
-        xp: progress.xp,
-        level: progress.level,
-        maxXp: progress.maxXp,
-        gold: prev.gold + result.goldGained + milestoneGold,
-        inventory: [...prev.inventory, ...result.lootDrops],
-        dungeonState: dungeonAfterRun,
-        mana: manaAfterBonus,
-        secondaryResources: resourcesAfterRun,
-        streakState: tickResult.state,
-        gems: nextLedger,
-      };
-    });
-    setPendingAbility(null);
-
-    // Offer retry on a failed session before navigating away.
-    // Skip if the session somehow killed a monster — would require reverting loot/xp.
-    if (
-      snapshotForRetry &&
-      !result.monsterDefeated &&
-      canRetry({ ledger: nextLedger, alreadyUsed: false, accuracy })
-    ) {
-      setRetryPrompt({ snapshot: snapshotForRetry, abilityId: ability.id });
-      setPendingSnapshot(null);
-      return;
-    }
-    setPendingSnapshot(null);
-
-    if (result.monsterDefeated && monster) {
-      setPendingLoot({
-        monsterName: monster.name,
-        xp: totalXpDelta,
-        gold: result.goldGained,
-        items: result.lootDrops,
-        leveledUp: progress.leveledUp,
-        newLevel: progress.level,
-        dungeonCleared: result.dungeonCleared,
+    const performCommit = () => {
+      setGameState((prev) => {
+        const baseMana = prev.mana ?? initialManaState(now);
+        const manaAfterBonus = baseMana.firstLessonBonusUsedToday
+          ? baseMana
+          : applyFirstLessonBonus(baseMana);
+        return {
+          ...prev,
+          hp: nextHp,
+          maxHp: nextMaxHp,
+          xp: progress.xp,
+          level: progress.level,
+          maxXp: progress.maxXp,
+          gold: prev.gold + result.goldGained + milestoneGold,
+          inventory: [...prev.inventory, ...result.lootDrops],
+          dungeonState: dungeonAfterRun,
+          mana: manaAfterBonus,
+          secondaryResources: resourcesAfterRun,
+          streakState: tickResult.state,
+          gems: nextLedger,
+        };
       });
-      navigate('loot');
-    } else {
-      setPendingLoot(null);
+      setPendingAbility(null);
+
+      // Offer retry on a failed session before navigating away.
+      // Skip if the session somehow killed a monster — would require reverting loot/xp.
+      if (
+        snapshotForRetry &&
+        !result.monsterDefeated &&
+        canRetry({ ledger: nextLedger, alreadyUsed: false, accuracy })
+      ) {
+        setRetryPrompt({ snapshot: snapshotForRetry, abilityId: ability.id });
+        setPendingSnapshot(null);
+        return;
+      }
+      setPendingSnapshot(null);
+
+      if (result.monsterDefeated && monster) {
+        setPendingLoot({
+          monsterName: monster.name,
+          xp: totalXpDelta,
+          gold: result.goldGained,
+          items: result.lootDrops,
+          leveledUp: progress.leveledUp,
+          newLevel: progress.level,
+          dungeonCleared: result.dungeonCleared,
+        });
+        navigate('loot');
+      } else {
+        setPendingLoot(null);
+        // Already on dungeon screen when animation case; harmless to re-navigate otherwise.
+      }
+    };
+
+    if (result.damageDealt > 0) {
+      // Defer commit until Dungeon finishes playing the ability animation.
+      pendingCommitRef.current = performCommit;
+      setPendingAnimation({
+        abilityId: ability.id,
+        damage: result.damageDealt,
+        counterDamage: result.counterDamage,
+        killed: result.monsterDefeated,
+      });
       navigate('dungeon');
+    } else {
+      performCommit();
+      if (!result.monsterDefeated) navigate('dungeon');
     }
+  };
+
+  const handleAnimationComplete = () => {
+    const commit = pendingCommitRef.current;
+    pendingCommitRef.current = null;
+    setPendingAnimation(null);
+    if (commit) commit();
   };
 
   const handleRetryAccept = () => {
@@ -504,6 +535,8 @@ function App() {
                     {...screenProps}
                     onAbilityChosen={handleAbilityChosen}
                     debugMode={tweaks.debugMode}
+                    pendingAnimation={pendingAnimation}
+                    onAnimationComplete={handleAnimationComplete}
                   />
                 )}
                 {screen === 'lesson' && (
