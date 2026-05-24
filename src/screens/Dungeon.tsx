@@ -72,6 +72,11 @@ const DEFAULT_PROJECTILE: Required<
 const REDUCED_TOTAL_MS = 100;
 const REDUCED_IMPACT_MS = 50;
 
+const KILL_TOTAL_MS = 380;
+const COUNTER_TOTAL_MS = 320;
+const REDUCED_KILL_MS = 80;
+const REDUCED_COUNTER_MS = 80;
+
 const ABILITY_ANIM: Record<string, AnimSpec> = {
   // ── Mage — all projectile, varied size/speed/trajectory/tint ──
   mage_spark:           { kind: 'projectile', tint: '#ffe066', size: 8,  travelMs: 240, trajectory: 'straight', totalMs: 520 },
@@ -216,8 +221,12 @@ const Dungeon: React.FC<DungeonProps> = ({
   }, []);
 
   // Animation phase: 'travel' while hero is swinging / projectile is in flight,
-  // 'impact' after the hit lands (flash + shake + damage number), null when idle.
-  const [animPhase, setAnimPhase] = useState<'travel' | 'impact' | null>(null);
+  // 'impact' after the hit lands (flash + shake + damage number), 'kill' if the
+  // ability is lethal (monster fades), 'counter' if the monster survives and
+  // hits back, null when idle.
+  const [animPhase, setAnimPhase] = useState<
+    'travel' | 'impact' | 'kill' | 'counter' | null
+  >(null);
   const [animTick, setAnimTick] = useState(0);
   const animatingAbility =
     pendingAnimation ? findAbilityById(pendingAnimation.abilityId) ?? null : null;
@@ -258,16 +267,42 @@ const Dungeon: React.FC<DungeonProps> = ({
         : supportKind
           ? supportTotal
           : meleeTotal;
+    const killMs = reduced ? REDUCED_KILL_MS : KILL_TOTAL_MS;
+    const counterMs = reduced ? REDUCED_COUNTER_MS : COUNTER_TOTAL_MS;
+
     setAnimPhase('travel');
     setAnimTick((t) => t + 1);
-    const t1 = window.setTimeout(() => setAnimPhase('impact'), impactAt);
-    const t2 = window.setTimeout(() => {
-      setAnimPhase(null);
-      onAnimationComplete?.();
-    }, totalAt);
+
+    const timeouts: number[] = [];
+    timeouts.push(window.setTimeout(() => setAnimPhase('impact'), impactAt));
+    timeouts.push(
+      window.setTimeout(() => {
+        if (pendingAnimation.killed && pendingAnimation.damage > 0) {
+          setAnimPhase('kill');
+          setAnimTick((t) => t + 1);
+          timeouts.push(
+            window.setTimeout(() => {
+              setAnimPhase(null);
+              onAnimationComplete?.();
+            }, killMs),
+          );
+        } else if (pendingAnimation.counterDamage > 0) {
+          setAnimPhase('counter');
+          setAnimTick((t) => t + 1);
+          timeouts.push(
+            window.setTimeout(() => {
+              setAnimPhase(null);
+              onAnimationComplete?.();
+            }, counterMs),
+          );
+        } else {
+          setAnimPhase(null);
+          onAnimationComplete?.();
+        }
+      }, totalAt),
+    );
     return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
+      timeouts.forEach((id) => window.clearTimeout(id));
     };
     // Resolved timings derive from pendingAnimation; depend on the trigger only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -316,7 +351,14 @@ const Dungeon: React.FC<DungeonProps> = ({
     );
   }
 
-  const hpPct = Math.max(0, (progress.currentMonsterHp / monster.maxHp) * 100);
+  // Show post-hit HP from impact onward, so the monster HP bar drains in
+  // sync with the impact flash and reaches 0 just before the kill animation.
+  const displayedMonsterHp =
+    pendingAnimation &&
+    (animPhase === 'impact' || animPhase === 'kill' || animPhase === 'counter')
+      ? Math.max(0, progress.currentMonsterHp - pendingAnimation.damage)
+      : progress.currentMonsterHp;
+  const hpPct = Math.max(0, (displayedMonsterHp / monster.maxHp) * 100);
   const playerHpPct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
   const manaPct = Math.max(0, (mana.current / MANA_MAX) * 100);
   const secondaryValue =
@@ -404,6 +446,29 @@ const Dungeon: React.FC<DungeonProps> = ({
           25% { opacity: 0.9; }
           100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
         }
+        @keyframes heroShake {
+          0%,100% { transform: translateX(0); }
+          20% { transform: translateX(-5px); }
+          40% { transform: translateX(5px); }
+          60% { transform: translateX(-3px); }
+          80% { transform: translateX(3px); }
+        }
+        @keyframes monsterCounterLunge {
+          0% { transform: translateX(0); }
+          35% { transform: translateX(-46px); }
+          65% { transform: translateX(-46px); }
+          100% { transform: translateX(0); }
+        }
+        @keyframes monsterDie {
+          0% { transform: scale(1); opacity: 1; filter: brightness(1); }
+          25% { transform: scale(1.35); opacity: 1; filter: brightness(2.4); }
+          100% { transform: scale(1.65); opacity: 0; filter: brightness(1.2); }
+        }
+        @keyframes killFlash {
+          0% { opacity: 0; }
+          20% { opacity: 0.95; }
+          100% { opacity: 0; }
+        }
         @media (prefers-reduced-motion: reduce) {
           @keyframes meleeLunge { 0%,100% { transform: translateX(0); } }
           @keyframes projectileFly { from,to { transform: translate(0,0); opacity: 0.6; } }
@@ -412,6 +477,10 @@ const Dungeon: React.FC<DungeonProps> = ({
           @keyframes healSparkle { 0%,100% { opacity: 0; } }
           @keyframes healGlow { 0%,100% { opacity: 0; } }
           @keyframes shieldRing { 0%,100% { opacity: 0; } }
+          @keyframes heroShake { 0%,100% { transform: translateX(0); } }
+          @keyframes monsterCounterLunge { 0%,100% { transform: translateX(0); } }
+          @keyframes monsterDie { 0% { opacity: 1; } 100% { opacity: 0; } }
+          @keyframes killFlash { 0%,100% { opacity: 0; } }
         }
       `}</style>
 
@@ -511,12 +580,24 @@ const Dungeon: React.FC<DungeonProps> = ({
           }}
         >
           <div
-            key={animPhase === 'impact' ? `shake-${animTick}` : 'idle'}
+            key={
+              animPhase === 'kill'
+                ? `die-${animTick}`
+                : animPhase === 'counter'
+                  ? `clunge-${animTick}`
+                  : animPhase === 'impact'
+                    ? `shake-${animTick}`
+                    : 'idle'
+            }
             style={{
               animation:
-                animPhase === 'impact'
-                  ? 'monsterShake 200ms steps(3, end)'
-                  : 'fightBob 2.5s ease-in-out infinite',
+                animPhase === 'kill'
+                  ? `monsterDie ${KILL_TOTAL_MS}ms ease-out forwards`
+                  : animPhase === 'counter'
+                    ? `monsterCounterLunge ${COUNTER_TOTAL_MS}ms ease-in-out`
+                    : animPhase === 'impact'
+                      ? 'monsterShake 200ms steps(3, end)'
+                      : 'fightBob 2.5s ease-in-out infinite',
             }}
           >
             {monster.emoji}
@@ -569,12 +650,19 @@ const Dungeon: React.FC<DungeonProps> = ({
             />
           </div>
           <div style={{ fontSize: 6, color: RPG.textDim, textAlign: 'right' }}>
-            {progress.currentMonsterHp}/{monster.maxHp}
+            {displayedMonsterHp}/{monster.maxHp}
           </div>
         </div>
 
         {/* Hero sprite */}
         <div
+          key={
+            animPhase === 'counter'
+              ? `hero-shake-${animTick}`
+              : isAnimating && animKind === 'melee'
+                ? `hero-lunge-${animTick}`
+                : 'hero-idle'
+          }
           style={{
             position: 'absolute',
             top: 130,
@@ -582,9 +670,11 @@ const Dungeon: React.FC<DungeonProps> = ({
             filter: `drop-shadow(0 0 16px ${palette.glow})`,
             ['--lunge-x' as string]: `${meleeLunge}px`,
             animation:
-              isAnimating && animKind === 'melee'
-                ? `meleeLunge ${meleeTotal}ms ease-out`
-                : undefined,
+              animPhase === 'counter'
+                ? `heroShake 280ms steps(4, end)`
+                : isAnimating && animKind === 'melee' && animPhase !== 'kill'
+                  ? `meleeLunge ${meleeTotal}ms ease-out`
+                  : undefined,
           }}
         >
           <PixelGrid grid={heroSprite} scale={9} />
@@ -740,6 +830,45 @@ const Dungeon: React.FC<DungeonProps> = ({
               </div>
             )}
           </>
+        )}
+
+        {/* Kill flash — bright white overlay on the monster as it dies */}
+        {animPhase === 'kill' && (
+          <div
+            key={`kill-flash-${animTick}`}
+            style={{
+              position: 'absolute',
+              top: 60,
+              right: 30,
+              width: 96,
+              height: 96,
+              background: '#ffffff',
+              mixBlendMode: 'screen',
+              animation: `killFlash ${KILL_TOTAL_MS}ms ease-out forwards`,
+              zIndex: 3,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+
+        {/* Counter — floating damage number rising from the hero */}
+        {animPhase === 'counter' && pendingAnimation && pendingAnimation.counterDamage > 0 && (
+          <div
+            key={`counter-dmg-${animTick}`}
+            style={{
+              position: 'absolute',
+              top: 120,
+              left: 95,
+              fontSize: 14,
+              color: RPG.red,
+              textShadow: '0 0 6px #000, 1px 1px 0 #000, -1px -1px 0 #000',
+              animation: 'damageFloat 600ms ease-out forwards',
+              zIndex: 4,
+              pointerEvents: 'none',
+            }}
+          >
+            -{pendingAnimation.counterDamage}
+          </div>
         )}
 
         {/* Shield animation — translucent blue ring scales out around hero */}
