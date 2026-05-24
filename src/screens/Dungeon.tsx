@@ -6,6 +6,7 @@ import { resolveMana, canAffordAbility, initialManaState, MANA_MAX } from '../ga
 import {
   unlockedAbilities,
   secondaryResourceForClass,
+  findAbilityById,
   type ClassAbility,
   type AbilityEffect,
 } from '../game/class-abilities';
@@ -19,10 +20,40 @@ import { RPG, PixelPanel, PixelHeader, PixelButton } from '../components/rpg';
 import { PixelGrid } from '../components/rpg/PixelGrid';
 import { tintedHeroBack, heroPalette } from '../art/sprites';
 
+export interface PendingAnimation {
+  abilityId: string;
+  damage: number;
+  counterDamage: number;
+  killed: boolean;
+}
+
 interface DungeonProps extends ScreenProps {
   onAbilityChosen?: (abilityId: string) => void;
   debugMode?: boolean;
+  pendingAnimation?: PendingAnimation | null;
+  onAnimationComplete?: () => void;
 }
+
+type AnimationKind = 'melee' | 'projectile';
+
+function projectileTint(label: string): string {
+  const l = label.toLowerCase();
+  if (l.includes('fire')) return '#ff7a3a';
+  if (l.includes('frost') || l.includes('ice')) return '#4a9edd';
+  if (l.includes('arcane')) return '#9b5de5';
+  return '#9b5de5';
+}
+
+function animationKindFor(ab: ClassAbility): AnimationKind {
+  return effectIcon(ab) === 'sword' ? 'melee' : 'projectile';
+}
+
+const MELEE_IMPACT_MS = 250;
+const MELEE_TOTAL_MS = 600;
+const PROJECTILE_TRAVEL_MS = 400;
+const PROJECTILE_TOTAL_MS = 600;
+const REDUCED_TOTAL_MS = 100;
+const REDUCED_IMPACT_MS = 50;
 
 type EffectIcon = 'sword' | 'staff' | 'heart' | 'shield';
 
@@ -67,6 +98,8 @@ const Dungeon: React.FC<DungeonProps> = ({
   setScreen,
   onAbilityChosen,
   debugMode = false,
+  pendingAnimation = null,
+  onAnimationComplete,
 }) => {
   const { dungeonState } = gameState;
   const dungeon = getDungeon(dungeonState.activeDungeonId);
@@ -126,6 +159,51 @@ const Dungeon: React.FC<DungeonProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Animation phase: 'travel' while hero is swinging / projectile is in flight,
+  // 'impact' after the hit lands (flash + shake + damage number), null when idle.
+  const [animPhase, setAnimPhase] = useState<'travel' | 'impact' | null>(null);
+  const [animTick, setAnimTick] = useState(0);
+  const animatingAbility =
+    pendingAnimation ? findAbilityById(pendingAnimation.abilityId) ?? null : null;
+  const animKind: AnimationKind | null = animatingAbility
+    ? animationKindFor(animatingAbility)
+    : null;
+  const animTint = animatingAbility ? projectileTint(animatingAbility.label) : '#9b5de5';
+  const isAnimating = pendingAnimation != null;
+
+  useEffect(() => {
+    if (!pendingAnimation) {
+      setAnimPhase(null);
+      return;
+    }
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const impactAt = reduced
+      ? REDUCED_IMPACT_MS
+      : animKind === 'projectile'
+        ? PROJECTILE_TRAVEL_MS
+        : MELEE_IMPACT_MS;
+    const totalAt = reduced
+      ? REDUCED_TOTAL_MS
+      : animKind === 'projectile'
+        ? PROJECTILE_TOTAL_MS
+        : MELEE_TOTAL_MS;
+    setAnimPhase('travel');
+    setAnimTick((t) => t + 1);
+    const t1 = window.setTimeout(() => setAnimPhase('impact'), impactAt);
+    const t2 = window.setTimeout(() => {
+      setAnimPhase(null);
+      onAnimationComplete?.();
+    }, totalAt);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+    // animKind is derived from pendingAnimation; safe to depend on the trigger only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAnimation]);
+
   const mana = resolveMana(gameState.mana ?? initialManaState(Date.now()), Date.now());
   const secondary = gameState.secondaryResources ?? emptySecondaryResources();
   const abilities = unlockedAbilities(hero.classType, gameState.level);
@@ -184,7 +262,8 @@ const Dungeon: React.FC<DungeonProps> = ({
   const selectedAbility = abilities.find((a) => a.id === selectedAbilityId) ?? null;
   const selectedAffordable = selectedAbility
     ? (debugMode || canAffordAbility(mana, selectedAbility.mpCost)) &&
-      canAffordSecondary(secondary, selectedAbility.classType, selectedAbility.secondaryCost)
+      canAffordSecondary(secondary, selectedAbility.classType, selectedAbility.secondaryCost) &&
+      !isAnimating
     : false;
 
   return (
@@ -203,6 +282,43 @@ const Dungeon: React.FC<DungeonProps> = ({
         @keyframes fightBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
         @keyframes fightTwinkle { 0%,100%{opacity:0.2} 50%{opacity:0.7} }
         @keyframes fightSlideUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes meleeLunge {
+          0% { transform: translateX(0); }
+          42% { transform: translateX(200px); }
+          58% { transform: translateX(200px); }
+          100% { transform: translateX(0); }
+        }
+        @keyframes projectileFly {
+          from { transform: translate(0, 0) scale(1); opacity: 1; }
+          to { transform: translate(var(--projectile-dx), var(--projectile-dy)) scale(0.9); opacity: 1; }
+        }
+        @keyframes impactFlash {
+          0% { opacity: 0; }
+          15% { opacity: 0.85; }
+          100% { opacity: 0; }
+        }
+        @keyframes impactRing {
+          0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0.9; }
+          100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
+        }
+        @keyframes monsterShake {
+          0%,100% { transform: translateX(0); }
+          20% { transform: translateX(-6px); }
+          40% { transform: translateX(6px); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(3px); }
+        }
+        @keyframes damageFloat {
+          0% { transform: translate(-50%, 0); opacity: 0; }
+          15% { opacity: 1; }
+          100% { transform: translate(-50%, -40px); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes meleeLunge { 0%,100% { transform: translateX(0); } }
+          @keyframes projectileFly { from,to { transform: translate(0,0); opacity: 0.6; } }
+          @keyframes impactRing { 0%,100% { opacity: 0; } }
+          @keyframes monsterShake { 0%,100% { transform: translateX(0); } }
+        }
       `}</style>
 
       {/* Background */}
@@ -296,12 +412,21 @@ const Dungeon: React.FC<DungeonProps> = ({
             top: 60,
             right: 30,
             filter: `drop-shadow(0 0 20px ${monsterGlow}aa)`,
-            animation: 'fightBob 2.5s ease-in-out infinite',
             fontSize: 96,
             lineHeight: 1,
           }}
         >
-          {monster.emoji}
+          <div
+            key={animPhase === 'impact' ? `shake-${animTick}` : 'idle'}
+            style={{
+              animation:
+                animPhase === 'impact'
+                  ? 'monsterShake 200ms steps(3, end)'
+                  : 'fightBob 2.5s ease-in-out infinite',
+            }}
+          >
+            {monster.emoji}
+          </div>
         </div>
 
         {/* Monster HP panel */}
@@ -361,10 +486,94 @@ const Dungeon: React.FC<DungeonProps> = ({
             top: 130,
             left: 20,
             filter: `drop-shadow(0 0 16px ${palette.glow})`,
+            animation:
+              isAnimating && animKind === 'melee'
+                ? `meleeLunge ${MELEE_TOTAL_MS}ms ease-out`
+                : undefined,
           }}
         >
           <PixelGrid grid={heroSprite} scale={9} />
         </div>
+
+        {/* Projectile orb (staff archetype) */}
+        {isAnimating && animKind === 'projectile' && animPhase === 'travel' && (
+          <div
+            key={`proj-${animTick}`}
+            style={{
+              position: 'absolute',
+              // Start near hero center, travel to monster center.
+              top: 168,
+              left: 70,
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              background: animTint,
+              boxShadow: `0 0 12px ${animTint}, 0 0 24px ${animTint}aa, inset 0 0 6px #ffffffaa`,
+              ['--projectile-dx' as string]: '240px',
+              ['--projectile-dy' as string]: '-60px',
+              animation: `projectileFly ${PROJECTILE_TRAVEL_MS}ms linear forwards`,
+              zIndex: 3,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+
+        {/* Impact effects on monster */}
+        {isAnimating && animPhase === 'impact' && (
+          <>
+            <div
+              key={`flash-${animTick}`}
+              style={{
+                position: 'absolute',
+                top: 60,
+                right: 30,
+                width: 96,
+                height: 96,
+                background: '#ffffff',
+                mixBlendMode: 'screen',
+                animation: 'impactFlash 220ms ease-out forwards',
+                zIndex: 3,
+                pointerEvents: 'none',
+              }}
+            />
+            {animKind === 'projectile' && (
+              <div
+                key={`ring-${animTick}`}
+                style={{
+                  position: 'absolute',
+                  top: 108,
+                  right: 78,
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  border: `2px solid ${animTint}`,
+                  boxShadow: `0 0 16px ${animTint}aa`,
+                  animation: 'impactRing 320ms ease-out forwards',
+                  zIndex: 3,
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+            {pendingAnimation && pendingAnimation.damage > 0 && (
+              <div
+                key={`dmg-${animTick}`}
+                style={{
+                  position: 'absolute',
+                  top: 50,
+                  right: 60,
+                  fontSize: 14,
+                  color: RPG.red,
+                  textShadow: '0 0 6px #000, 1px 1px 0 #000, -1px -1px 0 #000',
+                  animation: 'damageFloat 600ms ease-out forwards',
+                  zIndex: 4,
+                  pointerEvents: 'none',
+                }}
+              >
+                -{pendingAnimation.damage}
+              </div>
+            )}
+          </>
+        )}
 
         {/* Hero status overlay */}
         <div
@@ -473,7 +682,7 @@ const Dungeon: React.FC<DungeonProps> = ({
                 const color = iconColor(icon);
                 const manaOk = debugMode || canAffordAbility(mana, ab.mpCost);
                 const secOk = canAffordSecondary(secondary, ab.classType, ab.secondaryCost);
-                const affordable = manaOk && secOk;
+                const affordable = manaOk && secOk && !isAnimating;
                 const selected = selectedAbilityId === ab.id;
                 return (
                   <button
@@ -604,16 +813,18 @@ const Dungeon: React.FC<DungeonProps> = ({
 
         <button
           onClick={() => setScreen('home')}
+          disabled={isAnimating}
           style={{
             background: 'transparent',
             border: 'none',
             fontFamily: "'Press Start 2P'",
             fontSize: 7,
             color: '#4a4060',
-            cursor: 'pointer',
+            cursor: isAnimating ? 'not-allowed' : 'pointer',
             alignSelf: 'flex-end',
             letterSpacing: 1,
             flexShrink: 0,
+            opacity: isAnimating ? 0.4 : 1,
           }}
         >
           ↩ FLEE
