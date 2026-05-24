@@ -23,6 +23,7 @@ import { tintedHeroBack, heroPalette } from '../art/sprites';
 export interface PendingAnimation {
   abilityId: string;
   damage: number;
+  heal: number;
   counterDamage: number;
   killed: boolean;
 }
@@ -34,7 +35,9 @@ interface DungeonProps extends ScreenProps {
   onAnimationComplete?: () => void;
 }
 
-type AnimationKind = 'melee' | 'projectile';
+type AnimationKind = 'melee' | 'projectile' | 'heal' | 'shield';
+
+const SUPPORT_TOTAL_MS = 600;
 type Trajectory = 'straight' | 'arc-low' | 'arc-high';
 
 interface AnimSpec {
@@ -94,6 +97,12 @@ const ABILITY_ANIM: Record<string, AnimSpec> = {
 };
 
 function animSpecFor(ab: ClassAbility): AnimSpec {
+  // Pure support abilities (no direct damage) get a support animation anchored on hero.
+  if (ab.baseDamage === 0) {
+    const icon = effectIcon(ab);
+    if (icon === 'heart') return { kind: 'heal', totalMs: SUPPORT_TOTAL_MS };
+    if (icon === 'shield') return { kind: 'shield', totalMs: SUPPORT_TOTAL_MS };
+  }
   return ABILITY_ANIM[ab.id] ?? { kind: 'projectile' };
 }
 
@@ -233,16 +242,22 @@ const Dungeon: React.FC<DungeonProps> = ({
     const reduced =
       typeof window !== 'undefined' &&
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const supportKind = animSpec.kind === 'heal' || animSpec.kind === 'shield';
+    const supportTotal = animSpec.totalMs ?? SUPPORT_TOTAL_MS;
     const impactAt = reduced
       ? REDUCED_IMPACT_MS
       : animSpec.kind === 'projectile'
         ? projTravel
-        : meleeImpactMs(meleeTotal);
+        : supportKind
+          ? Math.round(supportTotal * 0.4)
+          : meleeImpactMs(meleeTotal);
     const totalAt = reduced
       ? REDUCED_TOTAL_MS
       : animSpec.kind === 'projectile'
         ? projTotal
-        : meleeTotal;
+        : supportKind
+          ? supportTotal
+          : meleeTotal;
     setAnimPhase('travel');
     setAnimTick((t) => t + 1);
     const t1 = window.setTimeout(() => setAnimPhase('impact'), impactAt);
@@ -375,11 +390,28 @@ const Dungeon: React.FC<DungeonProps> = ({
           15% { opacity: 1; }
           100% { transform: translate(-50%, -40px); opacity: 0; }
         }
+        @keyframes healSparkle {
+          0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+          20% { opacity: 1; }
+          100% { transform: translate(var(--sparkle-dx, 0px), -52px) scale(1); opacity: 0; }
+        }
+        @keyframes healGlow {
+          0%,100% { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+          40% { opacity: 0.85; transform: translate(-50%, -50%) scale(1.05); }
+        }
+        @keyframes shieldRing {
+          0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+          25% { opacity: 0.9; }
+          100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+        }
         @media (prefers-reduced-motion: reduce) {
           @keyframes meleeLunge { 0%,100% { transform: translateX(0); } }
           @keyframes projectileFly { from,to { transform: translate(0,0); opacity: 0.6; } }
           @keyframes impactRing { 0%,100% { opacity: 0; } }
           @keyframes monsterShake { 0%,100% { transform: translateX(0); } }
+          @keyframes healSparkle { 0%,100% { opacity: 0; } }
+          @keyframes healGlow { 0%,100% { opacity: 0; } }
+          @keyframes shieldRing { 0%,100% { opacity: 0; } }
         }
       `}</style>
 
@@ -642,6 +674,93 @@ const Dungeon: React.FC<DungeonProps> = ({
               </div>
             )}
           </>
+        )}
+
+        {/* Heal animation — green sparkles + glow pulse anchored on hero */}
+        {isAnimating && animKind === 'heal' && (
+          <>
+            <div
+              key={`heal-glow-${animTick}`}
+              style={{
+                position: 'absolute',
+                top: 175,
+                left: 65,
+                width: 110,
+                height: 110,
+                borderRadius: '50%',
+                background:
+                  'radial-gradient(circle, #5be38a88 0%, #5be38a33 45%, transparent 75%)',
+                animation: `healGlow ${animSpec?.totalMs ?? SUPPORT_TOTAL_MS}ms ease-out forwards`,
+                zIndex: 2,
+                pointerEvents: 'none',
+              }}
+            />
+            {[0, 1, 2, 3, 4].map((i) => {
+              const dx = (i - 2) * 9;
+              const delay = i * 80;
+              return (
+                <div
+                  key={`heal-spark-${animTick}-${i}`}
+                  style={{
+                    position: 'absolute',
+                    top: 200,
+                    left: 65 + dx - 3,
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: '#a8f5b8',
+                    boxShadow: '0 0 8px #a8f5b8, 0 0 14px #5be38aaa',
+                    ['--sparkle-dx' as string]: `${dx * 0.6}px`,
+                    animation: `healSparkle ${
+                      (animSpec?.totalMs ?? SUPPORT_TOTAL_MS) - delay
+                    }ms ease-out ${delay}ms forwards`,
+                    opacity: 0,
+                    zIndex: 3,
+                    pointerEvents: 'none',
+                  }}
+                />
+              );
+            })}
+            {pendingAnimation && pendingAnimation.heal > 0 && (
+              <div
+                key={`heal-num-${animTick}`}
+                style={{
+                  position: 'absolute',
+                  top: 130,
+                  left: 65,
+                  fontSize: 12,
+                  color: RPG.green,
+                  textShadow: '0 0 6px #000, 1px 1px 0 #000, -1px -1px 0 #000',
+                  animation: 'damageFloat 700ms ease-out forwards',
+                  zIndex: 4,
+                  pointerEvents: 'none',
+                }}
+              >
+                +{pendingAnimation.heal} HP
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Shield animation — translucent blue ring scales out around hero */}
+        {isAnimating && animKind === 'shield' && (
+          <div
+            key={`shield-ring-${animTick}`}
+            style={{
+              position: 'absolute',
+              top: 175,
+              left: 65,
+              width: 120,
+              height: 120,
+              borderRadius: '50%',
+              border: `3px solid ${RPG.blue}`,
+              boxShadow: `0 0 18px ${RPG.blue}cc, inset 0 0 18px ${RPG.blue}66`,
+              background: `radial-gradient(circle, ${RPG.blue}22 0%, transparent 65%)`,
+              animation: `shieldRing ${animSpec?.totalMs ?? SUPPORT_TOTAL_MS}ms ease-out forwards`,
+              zIndex: 3,
+              pointerEvents: 'none',
+            }}
+          />
         )}
 
         {/* Hero status overlay */}

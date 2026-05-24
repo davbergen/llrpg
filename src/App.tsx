@@ -68,6 +68,7 @@ function App() {
   const [pendingAnimation, setPendingAnimation] = useState<{
     abilityId: string;
     damage: number;
+    heal: number;
     counterDamage: number;
     killed: boolean;
   } | null>(null);
@@ -361,12 +362,16 @@ function App() {
       }
     };
 
-    if (result.damageDealt > 0) {
+    const hasShieldEffect = ability.effects.some((e) => e.kind === 'counter_reduction');
+    const wantsAnimation =
+      result.damageDealt > 0 || result.selfHeal > 0 || (ability.baseDamage === 0 && hasShieldEffect);
+    if (wantsAnimation) {
       // Defer commit until Dungeon finishes playing the ability animation.
       pendingCommitRef.current = performCommit;
       setPendingAnimation({
         abilityId: ability.id,
         damage: result.damageDealt,
+        heal: result.selfHeal,
         counterDamage: result.counterDamage,
         killed: result.monsterDefeated,
       });
