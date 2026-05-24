@@ -191,6 +191,18 @@ function App() {
     if (!canAffordSecondary(resources, ability.classType, ability.secondaryCost)) return;
     const baseMana = gameState.mana ?? initialManaState(Date.now());
     const resolvedMana = resolveMana(baseMana, Date.now());
+    if (tweaks.debugMode) {
+      // Debug mode: skip lesson entirely, resolve with a perfect-accuracy result.
+      // No mana spend, no retry snapshot.
+      setPendingSnapshot(null);
+      resolveAbility(abilityId, {
+        accuracy: 1,
+        correctCount: ability.lessonQuestions,
+        cardSnapshot: [],
+        snapshotForRetry: null,
+      });
+      return;
+    }
     if (!canAffordAbility(resolvedMana, ability.mpCost)) return;
     // Snapshot pre-lesson state so a 5-gem retry can fully revert it.
     setPendingSnapshot({
@@ -216,11 +228,27 @@ function App() {
     cardSnapshot: Array<[string, import('./game/fsrs-scheduler').CardState | null]>;
   }) => {
     if (!pendingAbility) return;
-    const ability = findAbilityById(pendingAbility);
-    if (!ability) return;
     const snapshotForRetry: RetrySnapshot | null = pendingSnapshot
       ? { ...pendingSnapshot, cards: cardSnapshot }
       : null;
+    resolveAbility(pendingAbility, { accuracy, correctCount, cardSnapshot, snapshotForRetry });
+  };
+
+  const resolveAbility = (
+    abilityId: string,
+    {
+      accuracy,
+      correctCount,
+      snapshotForRetry,
+    }: {
+      accuracy: number;
+      correctCount: number;
+      cardSnapshot: Array<[string, import('./game/fsrs-scheduler').CardState | null]>;
+      snapshotForRetry: RetrySnapshot | null;
+    },
+  ) => {
+    const ability = findAbilityById(abilityId);
+    if (!ability) return;
     const activeMonsters = getActiveMonsters(gameState.dungeonState);
     const activeProgress = gameState.dungeonState.progress[gameState.dungeonState.activeDungeonId];
     const monster = activeProgress ? activeMonsters[activeProgress.currentMonsterIndex] : undefined;
@@ -472,7 +500,11 @@ function App() {
               >
                 {screen === 'home' && <Home {...screenProps} />}
                 {screen === 'dungeon' && (
-                  <Dungeon {...screenProps} onAbilityChosen={handleAbilityChosen} />
+                  <Dungeon
+                    {...screenProps}
+                    onAbilityChosen={handleAbilityChosen}
+                    debugMode={tweaks.debugMode}
+                  />
                 )}
                 {screen === 'lesson' && (
                   <Lesson
@@ -578,6 +610,11 @@ function App() {
           />
         </TweakSection>
         <TweakSection label="Debug">
+          <TweakToggle
+            label="Debug Mode (∞ MP, skip lessons)"
+            value={tweaks.debugMode}
+            onChange={(v) => setTweak('debugMode', v)}
+          />
           <TweakButton
             label="Show level-up screen"
             onClick={() => {

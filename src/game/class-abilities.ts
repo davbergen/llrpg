@@ -31,10 +31,10 @@ export interface ClassAbility {
 }
 
 export function lessonQuestionsForMp(mp: number): number {
-  if (mp <= 1) return 1;
-  if (mp <= 2) return 2;
-  if (mp <= 4) return 3;
-  return 4;
+  if (mp <= 1) return 5;
+  if (mp <= 2) return 10;
+  if (mp <= 4) return 15;
+  return 20;
 }
 
 export const CLASS_ABILITIES: ClassAbility[] = [

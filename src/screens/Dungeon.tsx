@@ -21,6 +21,7 @@ import { tintedHeroBack, heroPalette } from '../art/sprites';
 
 interface DungeonProps extends ScreenProps {
   onAbilityChosen?: (abilityId: string) => void;
+  debugMode?: boolean;
 }
 
 type EffectIcon = 'sword' | 'staff' | 'heart' | 'shield';
@@ -65,6 +66,7 @@ const Dungeon: React.FC<DungeonProps> = ({
   setGameState,
   setScreen,
   onAbilityChosen,
+  debugMode = false,
 }) => {
   const { dungeonState } = gameState;
   const dungeon = getDungeon(dungeonState.activeDungeonId);
@@ -127,7 +129,8 @@ const Dungeon: React.FC<DungeonProps> = ({
   const mana = resolveMana(gameState.mana ?? initialManaState(Date.now()), Date.now());
   const secondary = gameState.secondaryResources ?? emptySecondaryResources();
   const abilities = unlockedAbilities(hero.classType, gameState.level);
-  const outOfMana = abilities.every((ab) => !canAffordAbility(mana, ab.mpCost));
+  const outOfMana =
+    !debugMode && abilities.every((ab) => !canAffordAbility(mana, ab.mpCost));
   const secondaryKind = secondaryResourceForClass(hero.classType);
   const palette = heroPalette(hero.classType);
   const heroSprite = tintedHeroBack(hero.classType);
@@ -180,7 +183,7 @@ const Dungeon: React.FC<DungeonProps> = ({
 
   const selectedAbility = abilities.find((a) => a.id === selectedAbilityId) ?? null;
   const selectedAffordable = selectedAbility
-    ? canAffordAbility(mana, selectedAbility.mpCost) &&
+    ? (debugMode || canAffordAbility(mana, selectedAbility.mpCost)) &&
       canAffordSecondary(secondary, selectedAbility.classType, selectedAbility.secondaryCost)
     : false;
 
@@ -468,7 +471,7 @@ const Dungeon: React.FC<DungeonProps> = ({
               {abilities.map((ab) => {
                 const icon = effectIcon(ab);
                 const color = iconColor(icon);
-                const manaOk = canAffordAbility(mana, ab.mpCost);
+                const manaOk = debugMode || canAffordAbility(mana, ab.mpCost);
                 const secOk = canAffordSecondary(secondary, ab.classType, ab.secondaryCost);
                 const affordable = manaOk && secOk;
                 const selected = selectedAbilityId === ab.id;
