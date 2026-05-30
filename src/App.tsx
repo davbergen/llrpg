@@ -492,20 +492,50 @@ function App() {
   return (
     <>
       <div style={frameStyle}>
-        {/* Hidden debug trigger: 5 quick taps here open the Tweaks panel (mobile has no keyboard). */}
-        <div
-          onClick={handleCornerTap}
-          aria-hidden
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            width: 44,
-            height: 44,
-            zIndex: 1000,
-            background: 'transparent',
-          }}
-        />
+        {/* Hidden debug trigger for web: 5 quick taps in the top-right corner open the
+            Tweaks panel. Web also has the Cmd/Ctrl+. shortcut; native uses the visible
+            button below instead, since an invisible corner is unreliable on a touchscreen. */}
+        {!native && (
+          <div
+            onPointerDown={handleCornerTap}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: 48,
+              height: 48,
+              zIndex: 1000,
+              background: 'transparent',
+            }}
+          />
+        )}
+        {/* Native debug trigger: a visible button (no keyboard on device). Sits just below
+            the app header on the right. TODO: gate behind a dev flag before store release. */}
+        {native && (
+          <button
+            type="button"
+            onPointerDown={() => setShowTweaks((v) => !v)}
+            aria-label="Toggle debug menu"
+            style={{
+              position: 'fixed',
+              top: 'calc(env(safe-area-inset-top) + 42px)',
+              right: 'calc(env(safe-area-inset-right) + 8px)',
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              border: 'none',
+              padding: 0,
+              fontSize: 18,
+              lineHeight: '40px',
+              color: '#fff',
+              background: 'rgba(0,0,0,0.35)',
+              zIndex: 2147483645,
+            }}
+          >
+            🐞
+          </button>
+        )}
         {/* Status bar */}
         <div
           style={{
