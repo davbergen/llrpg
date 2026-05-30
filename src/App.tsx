@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadLocalSync, localOnlyRepo, authedRepo, WriteThroughRepo, type Repo } from './repos';
@@ -39,6 +39,7 @@ import { useAuth, ensureHeroRow, signOut } from './auth';
 import { getOrCreateGuestId } from './repos/guestId';
 import { STREAK_MILESTONE_GOLD } from './game/streak-milestones';
 import { useScheduledDeletion } from './gdpr/useScheduledDeletion';
+import { isNative } from './platform';
 
 const XP_PER_CORRECT_ANSWER = 5;
 import {
@@ -423,7 +424,9 @@ function App() {
       ? (findAbilityById(pendingAbility)?.lessonQuestions ?? 5)
       : undefined;
 
-  // Phone frame dimensions
+  // Web renders inside a fixed phone frame; native fills the device edge-to-edge
+  // with safe-area insets (handled in `frameStyle` below).
+  const native = isNative();
   const frameW = 390;
   const frameH = 720;
   const scale = Math.min(
@@ -431,6 +434,35 @@ function App() {
     (window.innerHeight - 40) / frameH,
     1.2,
   );
+
+  const frameStyle: CSSProperties = native
+    ? {
+        width: '100vw',
+        height: '100dvh',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        overflow: 'hidden',
+        background: '#1a1a2e',
+        // box-sizing: border-box (set globally) keeps the insets inside 100dvh.
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }
+    : {
+        transform: `scale(${scale})`,
+        transformOrigin: 'center center',
+        width: frameW,
+        height: frameH,
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        overflow: 'hidden',
+        background: '#1a1a2e',
+        boxShadow:
+          '0 0 60px rgba(0,0,0,0.8), 0 0 0 2px #c8860a, 0 0 0 5px #0a0a14, 0 0 0 7px #c8860a',
+      };
 
   const screenProps = {
     hero: hero!,
@@ -442,21 +474,7 @@ function App() {
 
   return (
     <>
-      <div
-        style={{
-          transform: `scale(${scale})`,
-          transformOrigin: 'center center',
-          width: frameW,
-          height: frameH,
-          display: 'flex',
-          flexDirection: 'column',
-          position: 'relative',
-          overflow: 'hidden',
-          background: '#1a1a2e',
-          boxShadow:
-            '0 0 60px rgba(0,0,0,0.8), 0 0 0 2px #c8860a, 0 0 0 5px #0a0a14, 0 0 0 7px #c8860a',
-        }}
-      >
+      <div style={frameStyle}>
         {/* Status bar */}
         <div
           style={{
@@ -575,27 +593,29 @@ function App() {
           )}
         </div>
 
-        {/* Home indicator */}
-        <div
-          style={{
-            height: 20,
-            background: '#0f0f1e',
-            borderTop: '1px solid #1a1a2e',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
+        {/* Home indicator — web frame only; native uses the real gesture bar. */}
+        {!native && (
           <div
             style={{
-              width: 100,
-              height: 4,
-              background: '#3a3a5a',
-              borderRadius: 2,
+              height: 20,
+              background: '#0f0f1e',
+              borderTop: '1px solid #1a1a2e',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
             }}
-          />
-        </div>
+          >
+            <div
+              style={{
+                width: 100,
+                height: 4,
+                background: '#3a3a5a',
+                borderRadius: 2,
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <TweaksPanel open={showTweaks} onClose={() => setShowTweaks(false)}>
