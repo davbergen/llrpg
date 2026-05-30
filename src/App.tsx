@@ -169,6 +169,23 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Touch fallback for the debug panel: 5 quick taps in the top-right corner.
+  // There is no keyboard on native/mobile, so the Cmd/Ctrl+. shortcut is unreachable there.
+  const cornerTapCount = useRef(0);
+  const cornerTapTimer = useRef<number | null>(null);
+  const handleCornerTap = () => {
+    if (cornerTapTimer.current !== null) window.clearTimeout(cornerTapTimer.current);
+    cornerTapCount.current += 1;
+    if (cornerTapCount.current >= 5) {
+      cornerTapCount.current = 0;
+      setShowTweaks((v) => !v);
+      return;
+    }
+    cornerTapTimer.current = window.setTimeout(() => {
+      cornerTapCount.current = 0;
+    }, 800);
+  };
+
   const navigate = (dest: ScreenName) => {
     setTransition(true);
     setTimeout(() => {
@@ -475,6 +492,20 @@ function App() {
   return (
     <>
       <div style={frameStyle}>
+        {/* Hidden debug trigger: 5 quick taps here open the Tweaks panel (mobile has no keyboard). */}
+        <div
+          onClick={handleCornerTap}
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: 44,
+            height: 44,
+            zIndex: 1000,
+            background: 'transparent',
+          }}
+        />
         {/* Status bar */}
         <div
           style={{
