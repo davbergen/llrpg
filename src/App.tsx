@@ -40,6 +40,7 @@ import { getOrCreateGuestId } from './repos/guestId';
 import { STREAK_MILESTONE_GOLD } from './game/streak-milestones';
 import { useScheduledDeletion } from './gdpr/useScheduledDeletion';
 import { isNative } from './platform';
+import { startBgm } from './bgm';
 
 const XP_PER_CORRECT_ANSWER = 5;
 import {
@@ -157,6 +158,12 @@ function App() {
   const setTweak = <K extends keyof Tweaks>(key: K, value: Tweaks[K]) => {
     setTweaks((prev) => ({ ...prev, [key]: value }));
   };
+
+  // Start the looping background music by default. If the browser/webview blocks
+  // autoplay, startBgm() retries on the first user gesture.
+  useEffect(() => {
+    startBgm();
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -13,6 +13,7 @@ import {
 import { calcStats, RARITY_DAMAGE_BONUS } from '../game/stats';
 import { sellValue } from '../game/loot-tables-v2';
 import AccountSection from './AccountSection';
+import { isBgmMuted, setBgmMuted } from '../bgm';
 
 const classColors: Record<ClassType, string> = {
   mage: '#9b5de5',
@@ -50,6 +51,13 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
   const abilities = classAbilities[hero.classType] ?? classAbilities.mage;
   const { damageBonus } = calcStats(hero, hero.equipment, gameState.level);
   const [sellTarget, setSellTarget] = useState<{ index: number; item: InventoryItem } | null>(null);
+  const [musicOn, setMusicOn] = useState(!isBgmMuted());
+
+  const toggleMusic = () => {
+    const next = !musicOn;
+    setMusicOn(next);
+    setBgmMuted(!next);
+  };
 
   const equipItem = (item: InventoryItem, index: number) => {
     if (!item.slot) return;
@@ -424,6 +432,14 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
             </div>
           </div>
         )}
+      </div>
+
+      {/* Settings */}
+      <div style={{ padding: '14px 16px', borderTop: `3px solid ${RPG.border}` }}>
+        <PixelHeader size={9}>SETTINGS</PixelHeader>
+        <PixelButton onClick={toggleMusic} variant={musicOn ? 'green' : 'grey'} small>
+          {musicOn ? '🔊 MUSIC: ON' : '🔇 MUSIC: OFF'}
+        </PixelButton>
       </div>
 
       <AccountSection />
