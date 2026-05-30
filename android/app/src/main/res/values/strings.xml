@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LinguaQuest</string>
+    <string name="title_activity_main">LinguaQuest</string>
+    <string name="package_name">com.davbergen.lrpg</string>
+    <string name="custom_url_scheme">com.davbergen.lrpg</string>
+</resources>
