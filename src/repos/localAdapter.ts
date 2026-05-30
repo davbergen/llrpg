@@ -1,17 +1,14 @@
 import type { Repo, PersistedState } from './types';
 import { hydratePersisted, isPersistedShape } from './types';
+import { gameStorage } from './preferencesStorage';
 
 export const SAVE_KEY = 'llrpg:save:v2';
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
+/** Preferences cache on native, `localStorage` on web. See {@link gameStorage}. */
 function defaultStorage(): StorageLike | null {
-  try {
-    if (typeof localStorage === 'undefined') return null;
-    return localStorage;
-  } catch {
-    return null;
-  }
+  return gameStorage();
 }
 
 export class LocalAdapter implements Repo {
