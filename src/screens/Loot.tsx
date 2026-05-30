@@ -340,6 +340,7 @@ const Loot: React.FC<LootProps> = ({ reward, onContinue, setScreen }) => {
 
       <PixelButton
         onClick={() => (onContinue ? onContinue() : setScreen('dungeon'))}
+        sound="confirm"
         variant="green"
         style={{ width: '100%', marginTop: 'auto' }}
       >

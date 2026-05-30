@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ClassType, ScreenName } from '../../types';
+import { playSfx, playSelect, type SfxName } from '../../sfx';
 
 // --- Color tokens ---
 export const RPG = {
@@ -101,6 +102,8 @@ interface PixelButtonProps {
   disabled?: boolean;
   style?: React.CSSProperties;
   small?: boolean;
+  /** Press sound. Defaults to 'select'; use 'confirm' for choice-committing buttons. */
+  sound?: SfxName | 'none';
 }
 
 export function PixelButton({
@@ -110,6 +113,7 @@ export function PixelButton({
   disabled = false,
   style = {},
   small = false,
+  sound = 'select',
 }: PixelButtonProps) {
   const [pressed, setPressed] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -152,9 +156,14 @@ export function PixelButton({
   const v = variants[variant];
   const pad = small ? '8px 14px' : '12px 22px';
   const fontSize = small ? 9 : 11;
+  const handleClick = () => {
+    if (disabled) return;
+    if (sound !== 'none') playSfx(sound);
+    onClick?.();
+  };
   return (
     <button
-      onClick={disabled ? undefined : onClick}
+      onClick={disabled ? undefined : handleClick}
       onMouseDown={() => {
         if (!disabled) setPressed(true);
       }}
@@ -437,7 +446,10 @@ export function NavBar({ screen, setScreen }: NavBarProps) {
         return (
           <button
             key={tab.id}
-            onClick={() => setScreen(tab.id)}
+            onClick={() => {
+              playSelect();
+              setScreen(tab.id);
+            }}
             style={{
               flex: 1,
               padding: '10px 4px 8px',

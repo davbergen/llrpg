@@ -233,6 +233,7 @@ const Shop: React.FC<ShopProps> = ({ gameState, setGameState, userId }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <PixelButton
                 onClick={() => handleBuy(confirm)}
+                sound="confirm"
                 variant="green"
                 style={{ width: '100%' }}
               >

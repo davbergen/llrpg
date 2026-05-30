@@ -9,6 +9,7 @@ import {
   PixelButton,
   CharSprite,
 } from '../components/rpg';
+import { playSelect } from '../sfx';
 
 interface ClassDef {
   id: ClassType;
@@ -150,7 +151,7 @@ export function OnboardingWelcome({ onContinue }: { onContinue: () => void }) {
         </div>
       </PixelPanel>
 
-      <PixelButton onClick={onContinue} style={{ width: '100%' }}>
+      <PixelButton onClick={onContinue} sound="confirm" style={{ width: '100%' }}>
         ▶ BEGIN ADVENTURE
       </PixelButton>
       <div style={{ fontFamily: "'Press Start 2P'", fontSize: 7, color: RPG.textDim }}>
@@ -192,7 +193,10 @@ export function OnboardingClass({ onPick }: { onPick: (classType: ClassType) => 
           return (
             <div
               key={cls.id}
-              onClick={() => setSelected(cls.id)}
+              onClick={() => {
+                playSelect();
+                setSelected(cls.id);
+              }}
               style={{
                 ...pixelBorderStyle(
                   sel ? cls.color : RPG.border,
@@ -266,6 +270,7 @@ export function OnboardingClass({ onPick }: { onPick: (classType: ClassType) => 
       <PixelButton
         onClick={() => selected && onPick(selected)}
         disabled={!selected}
+        sound="confirm"
         style={{ width: '100%', marginTop: 4 }}
         variant="green"
       >
@@ -354,6 +359,7 @@ export function OnboardingName({
           onComplete({ name: name.trim(), classType, equipment: EMPTY_EQUIPMENT })
         }
         disabled={name.trim().length < 2}
+        sound="confirm"
         style={{ width: '100%' }}
         variant="green"
       >

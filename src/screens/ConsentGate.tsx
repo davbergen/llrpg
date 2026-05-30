@@ -47,10 +47,20 @@ export default function ConsentGate({ onAnswer }: ConsentGateProps) {
       </PixelPanel>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <PixelButton onClick={() => onAnswer(true)} variant="green" style={{ width: '100%' }}>
+        <PixelButton
+          onClick={() => onAnswer(true)}
+          sound="confirm"
+          variant="green"
+          style={{ width: '100%' }}
+        >
           ✓ YES, SEND ANONYMOUS DATA
         </PixelButton>
-        <PixelButton onClick={() => onAnswer(false)} variant="grey" style={{ width: '100%' }}>
+        <PixelButton
+          onClick={() => onAnswer(false)}
+          sound="confirm"
+          variant="grey"
+          style={{ width: '100%' }}
+        >
           ✗ NO THANKS
         </PixelButton>
       </div>

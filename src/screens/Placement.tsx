@@ -20,6 +20,7 @@ import {
 } from '../game/placement';
 import { PersistentCardStore } from '../game/fsrs-scheduler';
 import { getCardStorage } from '../repos/cardStorage';
+import { playSelect } from '../sfx';
 
 interface PlacementProps {
   onComplete: () => void;
@@ -129,6 +130,7 @@ export default function Placement({ onComplete }: PlacementProps) {
 
   const handleChoose = (opt: string) => {
     if (phase !== 'probe') return;
+    playSelect();
     setChoice(opt);
     setPhase('feedback');
   };
