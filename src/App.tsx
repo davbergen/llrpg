@@ -817,7 +817,7 @@ function RetryModal({ gemBalance, onAccept, onDecline }: RetryModalProps) {
           </span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <PixelButton onClick={onAccept} variant="green" style={{ width: '100%' }}>
+          <PixelButton onClick={onAccept} sound="confirm" variant="green" style={{ width: '100%' }}>
             💎 RETRY ({GEMS_RETRY_COST})
           </PixelButton>
           <PixelButton onClick={onDecline} variant="grey" style={{ width: '100%' }}>

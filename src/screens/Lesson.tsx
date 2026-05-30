@@ -37,6 +37,7 @@ import { VOCAB_SPINE } from '../content/spine';
 import { composeLesson } from '../game/lesson-composer';
 import { applyOutcome, newCardState, type CardKey, type CardState } from '../game/fsrs-scheduler';
 import { cardStore } from '../game/card-store-singleton';
+import { playSelect } from '../sfx';
 
 const DEFAULT_QUESTION_COUNT = 5;
 
@@ -95,6 +96,7 @@ const Lesson: React.FC<LessonProps> = ({
 
   const handleChoose = (choice: string) => {
     if (phase !== 'question' || !q) return;
+    playSelect();
     setLastChoice(choice);
     setPhase('feedback');
   };
@@ -302,6 +304,7 @@ const Lesson: React.FC<LessonProps> = ({
       {phase === 'feedback' && (
         <PixelButton
           onClick={handleNext}
+          sound={isLastQuestion ? 'confirm' : 'select'}
           variant={wasCorrect ? 'green' : 'gold'}
           style={{ width: '100%' }}
         >
