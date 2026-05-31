@@ -25,10 +25,10 @@ import { SIM_TRIALS, type PlayerArchetype } from './bands';
 
 const EMPTY_EQUIPMENT: Equipment = { head: null, chest: null, legs: null };
 
-// Safety caps to bound a single run. A run that exceeds these is treated as a
-// loss (the fight either drags forever or the player can never out-damage boss
-// regen) rather than looping the simulator.
-const CAST_CAP = 500;
+// Safety caps to bound a single boss fight. A fight that exceeds these is
+// treated as a loss (the player can never out-damage boss regen, or the day
+// budget loops forever) rather than spinning the simulator.
+const CAST_CAP = 200;
 const REST_CAP = 60;
 
 export interface SimResult {
@@ -134,9 +134,24 @@ interface RunOutcome {
 }
 
 /**
- * One continuous dungeon run. HP carries across the whole run (threat-
- * preserving: a rest restores mana only, never HP — the real game's home-regen
- * only makes the player's life easier, so passing bands here is conservative).
+ * One boss fight, boss-centric per the balance bands.
+ *
+ * The bands ("win rate", "boss dies in N casts", "ends the boss fight with
+ * <60% HP") are all phrased about the *boss*, so the sim measures the boss
+ * fight directly. The player arrives **rested** — full HP, a fresh day's mana,
+ * empty rage/faith (secondary resets on dungeon exit) — the real game's state
+ * on entering the final room after healing at Home.
+ *
+ * Within the boss fight HP is the binding resource: it carries down through the
+ * whole encounter and is never restored except by a class's own heal abilities.
+ * Mana is *not* meant to gate the fight — a real player spreads a boss across
+ * days, grinding lessons to refresh mana while the boss keeps its HP (PRD user
+ * story 34). So when the day's mana runs out the player "rests" (mana +
+ * secondary refresh) but takes **no** heal; the boss's accumulated damage
+ * stands. This makes the win-rate gradient respond to the sanctioned knobs
+ * (boss maxHp / counter / regen / enrage): more boss HP ⇒ more casts ⇒ more
+ * counters absorbed ⇒ lower win rate, and lower-accuracy archetypes need more
+ * casts per kill, so they die more often — exactly what the bands judge.
  */
 function simulateRun(
   dungeon: ParsedDungeon,
@@ -146,37 +161,44 @@ function simulateRun(
   rng: () => number,
 ): RunOutcome {
   const monsters = dungeon.monsters;
+  const bossIndex = monsters.length - 1;
+  const boss = monsters[bossIndex];
   const abilities = unlockedAbilities(classType, level);
   const maxHp = calcStats(heroFor(classType), EMPTY_EQUIPMENT, level).maxHp;
 
+  const dayMana = MANA_MAX + FIRST_LESSON_BONUS; // daily budget incl. first-lesson bonus
+
   let hp = maxHp;
-  let mana = MANA_MAX + FIRST_LESSON_BONUS; // first-lesson bonus, once per run
+  let mana = dayMana;
   let secondary = emptySecondaryResources();
   let state: DungeonState = {
     activeDungeonId: dungeon.meta.id,
-    progress: { [dungeon.meta.id]: freshProgress(monsters) },
+    progress: {
+      [dungeon.meta.id]: {
+        currentMonsterIndex: bossIndex,
+        currentMonsterHp: boss.maxHp,
+        lastActionAt: 0,
+        cleared: false,
+      },
+    },
   };
 
   let bossCasts = 0;
-  let casts = 0;
   let rests = 0;
 
   while (true) {
-    const progress = state.progress[dungeon.meta.id];
-    const monster = monsters[progress.currentMonsterIndex];
-    if (!monster) return { won: true, bossCasts, endHpFraction: hp / maxHp };
-
     const ability = chooseAbility(abilities, mana, secondary, classType, hp / maxHp);
     if (!ability) {
-      // Out of mana: rest restores mana only.
+      // Day's mana spent: grind lessons overnight to refresh mana (and rebuild
+      // rage/faith from scratch). No heal — the boss keeps the damage it dealt.
       if (++rests > REST_CAP) return { won: false, bossCasts, endHpFraction: 0 };
-      mana = MANA_MAX;
+      mana = dayMana;
+      secondary = emptySecondaryResources();
       continue;
     }
 
     const accuracyRoll = rollAccuracy(ability.lessonQuestions, accuracy, rng);
     mana -= ability.mpCost;
-    const wasBoss = monster.isBoss;
 
     const res = applyAbility({
       dungeonState: state,
@@ -188,11 +210,11 @@ function simulateRun(
     });
     state = res.nextDungeonState;
     secondary = res.nextSecondaryResources;
-    if (wasBoss) bossCasts++;
+    bossCasts++;
 
     hp = Math.min(maxHp, hp - res.counterDamage + res.selfHeal);
 
-    if (++casts > CAST_CAP) return { won: false, bossCasts, endHpFraction: 0 };
+    if (bossCasts > CAST_CAP) return { won: false, bossCasts, endHpFraction: 0 };
     if (hp <= 0) return { won: false, bossCasts, endHpFraction: 0 };
     if (res.dungeonCleared) return { won: true, bossCasts, endHpFraction: hp / maxHp };
   }
