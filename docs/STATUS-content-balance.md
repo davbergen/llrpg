@@ -69,18 +69,33 @@ Evidence gathered via the harness (all reproducible by re-running the sim):
 or balancing against suboptimal play). This makes the existing bands literally
 true and is the PRD's anticipated "next slice that adds real failure."
 
-**Still open (the question that stopped us):** *what a defeat should cost.*
-Candidates discussed: (a) retreat to current monster + full heal, monster HP
-resets [recommended — closest to current feel]; (b) restart whole dungeon;
-(c) retreat + gold penalty. **Pick one before the loss-state slice starts.**
+**RESOLVED — B1 / #79 (HITL decision, 2026-05-31):** defeat cost = **(a) retreat
+to current monster + full heal, monster HP resets, no resource penalty.** Chosen
+as the closest fit to current feel (HP already regens at Home) and least-punishing
+for a daily-cap game where re-clearing costs real days. Full spec:
+
+| Aspect | Behavior on defeat |
+|---|---|
+| Where the player lands | Back on the **current monster** (same `currentMonsterIndex`); the run is **not** reset, earlier-cleared monsters stay cleared. |
+| What heals | Player HP **fully restored** to max. |
+| What resets | **Current monster HP resets to full** (`currentMonsterHp = monster.maxHp`); in-progress chip damage on it is lost. |
+| Resource penalty | **None** — no gold/gem/XP loss, no streak break. |
+| Daily cap | **Not** refunded; `lastAbilityUsedAt` unchanged (consistent with the PRD's "a failed lesson still costs your daily action"). |
+| Flow | combat path surfaces a `defeated` outcome → minimal defeat screen → "Retreat" → Dungeon screen at full HP, current monster at full HP. |
+
+B1 is done; **B2 (#82) implements exactly this model.** (Decision is recorded
+here; the GitHub issue mirror was not posted — record it on #79/#82 if desired.)
 
 ## Recommended next slices (in order)
 
-1. **Loss state (game-design).** Decide defeat cost, then:
+1. **Loss state (game-design).** Defeat cost **decided** (B1/#79: retreat + full
+   heal + monster HP reset, no penalty — see Blocker section above). Implement:
    - Engine: stop clamping lethal damage; surface a "defeated" outcome from the
      combat path (the pure `applyAbility` already returns real `counterDamage`;
      the clamp is only in `App.tsx`). Keep `clampPlayerHp` or replace per decision.
-   - Routing: `App.tsx` defeat branch → home/retry per the chosen cost.
+   - Routing: `App.tsx` defeat branch → retreat to current monster, fully heal the
+     player, reset `currentMonsterHp` to the monster's `maxHp`; no resource change,
+     `lastAbilityUsedAt` untouched.
    - UI: a minimal defeat screen.
    - Tests: engine defeat-outcome unit tests; keep gate green.
    - The sim (`src/sim/simulate.ts`) already models loss (ends a run at HP ≤ 0),
