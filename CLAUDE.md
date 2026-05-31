@@ -17,6 +17,21 @@ npm run format   # Prettier
 
 Vite + React 18 + TypeScript. All source files use ES modules with explicit `import`/`export`. No `@babel/standalone`, no unpkg CDN scripts, no `file://` CORS workarounds.
 
+## Shell gotchas (Windows / PowerShell)
+
+The default shell here is **PowerShell**, but the Bash tool is also available — don't mix their syntaxes.
+
+- **`@'...'@` here-strings are PowerShell-only.** In Bash they are *not* special: the leading `@` becomes a literal character. Passing a commit message via `git commit -m @'...'@` in **Bash** leaks a stray `@` into the message (e.g. a commit titled `@ B1 (#79): ...`). For multi-line commit messages in the Bash tool, use a real heredoc and `-F -`:
+  ```sh
+  git commit -F - <<'EOF'
+  Subject line
+
+  Body.
+  EOF
+  ```
+  Only use `@'...'@` when the command is actually running under PowerShell, and keep the closing `'@` at column 0.
+- Per the global shell rules: PowerShell has no `&&`/`||` chaining, no ternary/null-coalescing, and writes UTF-16 files by default — prefer the Bash tool for POSIX-y scripts and the dedicated File/Search tools over `cat`/`grep`/`sed`.
+
 ## Architecture
 
 The app is a single-screen iOS-frame prototype of a Japanese-learning RPG ("LinguaQuest"). Everything renders inside a fixed 390×720 phone frame in `index.html`, scaled to fit the window.
