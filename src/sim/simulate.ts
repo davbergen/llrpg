@@ -84,16 +84,44 @@ export function dungeonOneShots(dungeon: ParsedDungeon, level: number): boolean 
   return dungeon.monsters.some((m) => maxEffectiveCounter(m) >= maxHp);
 }
 
+function damageBuffMultiplier(ability: ClassAbility): number {
+  const buff = ability.effects.find(
+    (e): e is { kind: 'damage_buff_next'; multiplier: number } => e.kind === 'damage_buff_next',
+  );
+  return buff?.multiplier ?? 1;
+}
+
+function counterReductionFraction(ability: ClassAbility): number {
+  return ability.effects
+    .filter((e): e is { kind: 'counter_reduction'; fraction: number } => e.kind === 'counter_reduction')
+    .reduce((acc, e) => Math.min(1, acc + e.fraction), 0);
+}
+
 /**
- * Greedy per-cast policy: heal when hurt, otherwise hit hardest affordable.
- * Returns null when the player can afford no ability (out of mana → must rest).
+ * Per-cast policy a competent player would follow, made class-aware so the sim
+ * reflects skilled play rather than a naive "always nuke" loop. This is sim
+ * *fidelity*, not a balance knob — it changes how well the simulated player
+ * uses the existing kit, never the kit's numbers or the bands.
+ *
+ * Priority each cast, given current HP, mana and secondary resource:
+ *  1. Survival: if a heal exists and we're hurt enough that the incoming counter
+ *     could plausibly kill within ~2 turns, heal (biggest heal that helps).
+ *  2. Spend a queued damage buff (e.g. Berserker Roar → next hit) by following
+ *     it with the hardest hit, so the buff is never wasted.
+ *  3. Offense: hit hardest, but prefer abilities that *gain* secondary when we
+ *     can't yet afford our premium spender, so rage/faith actually accumulates
+ *     toward Execute / Judgment instead of starving.
+ * Returns null when nothing is affordable (out of mana → rest).
  */
 function chooseAbility(
   abilities: ClassAbility[],
   mana: number,
   secondary: ReturnType<typeof emptySecondaryResources>,
   classType: ClassType,
-  hpFraction: number,
+  hp: number,
+  maxHp: number,
+  incomingCounter: number,
+  buffQueued: boolean,
 ): ClassAbility | null {
   const affordable = abilities.filter(
     (a) =>
@@ -102,20 +130,65 @@ function chooseAbility(
   );
   if (affordable.length === 0) return null;
 
-  if (hpFraction < 0.5) {
-    const heals = affordable.filter((a) => selfHealAmount(a) > 0);
-    if (heals.length > 0) {
-      return heals.reduce((best, a) =>
-        selfHealAmount(a) > selfHealAmount(best) ? a : best,
-      );
+  // 1. Survival. Heal when the fight could end us soon: either low absolute HP
+  //    or the next couple of counters would drop us past 0.
+  const heals = affordable.filter((a) => selfHealAmount(a) > 0);
+  if (heals.length > 0) {
+    const lethalSoon = hp <= incomingCounter * 2 || hp / maxHp < 0.35;
+    // Don't heal if we're already topped up enough that a heal would overheal.
+    const biggestHeal = heals.reduce((best, a) =>
+      selfHealAmount(a) > selfHealAmount(best) ? a : best,
+    );
+    if (lethalSoon && hp + selfHealAmount(biggestHeal) > hp) {
+      return biggestHeal;
     }
   }
 
   const damagers = affordable.filter((a) => a.baseDamage > 0);
-  if (damagers.length > 0) {
+
+  // 2. If a damage buff is queued, cash it in with the hardest available hit.
+  if (buffQueued && damagers.length > 0) {
     return damagers.reduce((best, a) => (a.baseDamage > best.baseDamage ? a : best));
   }
-  return affordable[0];
+
+  if (damagers.length === 0) {
+    // Only non-damaging options affordable (e.g. a buff/shield). Prefer queuing
+    // a damage buff; else take the strongest mitigation; else anything.
+    const buffs = affordable.filter((a) => damageBuffMultiplier(a) > 1);
+    if (buffs.length > 0) {
+      return buffs.reduce((best, a) =>
+        damageBuffMultiplier(a) > damageBuffMultiplier(best) ? a : best,
+      );
+    }
+    const mitigations = affordable.filter((a) => counterReductionFraction(a) > 0);
+    if (mitigations.length > 0) {
+      return mitigations.reduce((best, a) =>
+        counterReductionFraction(a) > counterReductionFraction(best) ? a : best,
+      );
+    }
+    return affordable[0];
+  }
+
+  // 3. Offense. The strongest hit overall is our premium spender; if it isn't
+  //    affordable yet (gated by secondary), build toward it with the best
+  //    secondary-gaining strike rather than dumping resources elsewhere.
+  const strongestKnown = abilities.reduce((best, a) =>
+    a.baseDamage > best.baseDamage ? a : best,
+  );
+  const premiumAffordable = affordable.some((a) => a.id === strongestKnown.id);
+  if (!premiumAffordable && (strongestKnown.secondaryCost ?? 0) > 0) {
+    const builders = damagers.filter((a) => (a.secondaryGain ?? 0) > 0);
+    if (builders.length > 0) {
+      return builders.reduce((best, a) =>
+        (a.secondaryGain ?? 0) > (best.secondaryGain ?? 0) ||
+        ((a.secondaryGain ?? 0) === (best.secondaryGain ?? 0) && a.baseDamage > best.baseDamage)
+          ? a
+          : best,
+      );
+    }
+  }
+
+  return damagers.reduce((best, a) => (a.baseDamage > best.baseDamage ? a : best));
 }
 
 function rollAccuracy(questions: number, p: number, rng: () => number): number {
@@ -186,7 +259,18 @@ function simulateRun(
   let rests = 0;
 
   while (true) {
-    const ability = chooseAbility(abilities, mana, secondary, classType, hp / maxHp);
+    const incomingCounter = maxEffectiveCounter(boss);
+    const buffQueued = (state.pendingDamageMultiplier ?? 1) > 1;
+    const ability = chooseAbility(
+      abilities,
+      mana,
+      secondary,
+      classType,
+      hp,
+      maxHp,
+      incomingCounter,
+      buffQueued,
+    );
     if (!ability) {
       // Day's mana spent: grind lessons overnight to refresh mana (and rebuild
       // rage/faith from scratch). No heal — the boss keeps the damage it dealt.
