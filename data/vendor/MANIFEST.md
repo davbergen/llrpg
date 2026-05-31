@@ -20,6 +20,8 @@ dictionary. Claude never invents curriculum.
 | `jlpt/LICENSE` | open-anki-jlpt-decks | — | License for the lists above |
 | `jmdict/jmdict-eng-common.json.zip` | [scriptin/jmdict-simplified](https://github.com/scriptin/jmdict-simplified) | release `3.6.1+20250929123459` (common words, English) | **Vocab correctness gate** (readings / glosses / pos) |
 | `kanjidic/kanjidic2.xml.gz` | [EDRDG KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project) | fetched 2026-05-31 (13,108 kanji) | **Kanji authority** (readings, meanings, old-scale JLPT) |
+| `kanji/n5_kanji.csv` … `n1_kanji.csv` | user-provided (community list) | added 2026-05-31 | **Kanji membership** per JLPT level. Format: header line `Kanji`, then **one kanji per line**, no translations (N5 ≈ 79, N4 ≈ 166). Meanings/readings come from KANJIDIC2. (Scope: N5+N4; N1–N3 included for future use.) |
+| `grammar/JLPT Grammar.xlsx - full list.csv` | user-provided (community list) | added 2026-05-31 | **Grammar membership + content** (~837 rows). No header. Columns: `Level, #, grammar(JP), romaji, meaning, …(blank cols)…, source`. e.g. `N5,1,ちゃいけない・じゃいけない,cha ikenai / ja ikenai,must not do (spoken Japanese),,,,,,source: …`. Level-tagged (`N5`, `N4`, …). |
 
 ## Licenses & attribution (must be preserved)
 
@@ -44,18 +46,33 @@ dictionary. Claude never invents curriculum.
   JMdict-common entry; kanji entry corroborates KANJIDIC2. A mismatch fails the
   build.
 
-## OPEN Stage-0 items (need a human-blessed source before the loop adds them)
+## Per-category correctness rules
 
-These have **no clean machine-readable blessed source** in the above repos, so
-they were intentionally **not** vendored. Per rule B, the loop must **not** add
-content in these categories until a source is blessed:
+- **Vocab** — membership from `jlpt/*.csv`; each entry's `jp`+`reading`+`pos`
+  must corroborate a `jmdict-eng-common` entry or the build fails.
+- **Kanji** — membership from `kanji/n5_kanji.csv` / `n4_kanji.csv`; each kanji
+  must exist in KANJIDIC2, which supplies its readings/meanings (the list itself
+  has none). A kanji absent from KANJIDIC2 fails the build.
+- **Grammar** — membership *and* content from the grammar CSV. **There is no
+  dictionary to cross-check grammar against** (JMdict/KANJIDIC2 are words and
+  kanji). So the grammar list is the *sole* authority; the only correctness guard
+  is that every grammar entry must render as **deterministically-gradable MCQ**
+  (e.g. pick the right particle/form), never free-text. Malformed CSV rows (bad
+  quoting/columns) must fail the build rather than produce a broken entry.
 
-1. **N5/N4 kanji *membership* list (new 5-level scale).** KANJIDIC2 only carries
-   the *old* 4-level JLPT scale, which maps imperfectly to N5/N4. KANJIDIC2 is
-   vendored for *correctness*, but a blessed new-scale kanji membership list is
-   still needed. (Existing `kanji.md` can already be correctness-checked.)
-2. **N5/N4 grammar list.** open-anki is vocab-only. A blessed grammar-point list
-   (e.g. the Tanos grammar lists) must be vendored before grammar entries grow.
+## Notes for the parser (later iteration)
 
-Until resolved, the loop's content work is scoped to **vocab** (membership +
-correctness fully covered) plus correctness-checking existing kanji/grammar.
+- Kanji CSVs have a `Kanji` header then one kanji per line; skip the header and
+  any blank trailing line.
+- The grammar CSV is a spreadsheet export with **no header** and several empty
+  trailing columns; the meaning is column 5, the JP grammar point column 3.
+  Expect occasional quoting quirks — validate per row and reject rows that don't
+  parse.
+
+## Status: all Stage-0 categories sourced
+
+Vocab, kanji, and grammar membership are now all vendored. The previously-open
+kanji-membership and grammar-list items are **closed**. The loop may grow all
+three categories within the N5+N4 scope (kanji/grammar provenance is
+user-provided community lists; preserve any attribution the upstream sources
+require if you later identify them).
