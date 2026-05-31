@@ -10,7 +10,6 @@
 import type { ClassType, DungeonState, Equipment, Hero, Monster } from '../types';
 import type { ParsedDungeon } from '../content/dungeons';
 import { applyAbility } from '../game/combat-engine';
-import { freshProgress } from '../game/dungeon';
 import {
   unlockedAbilities,
   type ClassAbility,
