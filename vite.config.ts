@@ -1,4 +1,5 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, configDefaults } from 'vitest/config';
+import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readFileSync } from 'node:fs';
 import { parseSpine, type SpineFileType } from './src/content/spine/parser';
@@ -40,4 +41,8 @@ function spineMarkdownPlugin(): Plugin {
 export default defineConfig({
   base: './',
   plugins: [react(), spineMarkdownPlugin()],
+  test: {
+    // The balance gate runs via its own config (`npm run sim`), not the unit run.
+    exclude: [...configDefaults.exclude, 'src/sim/dungeons.sim.test.ts'],
+  },
 });
