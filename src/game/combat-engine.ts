@@ -173,6 +173,28 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
   };
 }
 
-export function clampPlayerHp(hp: number): number {
-  return Math.max(1, hp);
+export interface PlayerHpOutcome {
+  /** Player HP after the turn, clamped to [0, maxHp]. 0 only when defeated. */
+  hp: number;
+  /** True when the monster's counter was lethal (net HP reached 0). */
+  defeated: boolean;
+}
+
+/**
+ * Resolve the player's HP after a combat turn: subtract the monster's counter
+ * damage, add any self-heal, and cap at maxHp. If the net result is 0 or below,
+ * the player is defeated and HP is 0.
+ *
+ * This replaces the old `clampPlayerHp` floor of 1, which made every fight
+ * unloseable (the vertical-slice placeholder removed in B2 / #82).
+ */
+export function resolvePlayerHp(input: {
+  hp: number;
+  counterDamage: number;
+  selfHeal: number;
+  maxHp: number;
+}): PlayerHpOutcome {
+  const raw = input.hp - input.counterDamage + input.selfHeal;
+  if (raw <= 0) return { hp: 0, defeated: true };
+  return { hp: Math.min(raw, input.maxHp), defeated: false };
 }
