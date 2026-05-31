@@ -40,6 +40,7 @@ import { getOrCreateGuestId } from './repos/guestId';
 import { STREAK_MILESTONE_GOLD } from './game/streak-milestones';
 import { useScheduledDeletion } from './gdpr/useScheduledDeletion';
 import { isNative } from './platform';
+import { maybeRequestNotificationPermission, scheduleFsrsReminders } from './notifications';
 import { startBgm } from './bgm';
 
 const XP_PER_CORRECT_ANSWER = 5;
@@ -142,6 +143,31 @@ function App() {
         void exchangeDeepLinkCode(url).catch((e) => {
           console.error('OAuth deep-link exchange failed:', e);
         });
+      });
+      if (disposed) {
+        void handle.remove();
+      } else {
+        remove = () => void handle.remove();
+      }
+    })();
+    return () => {
+      disposed = true;
+      remove?.();
+    };
+  }, []);
+
+  // Native only: when the app is backgrounded, recompute the next horizon of FSRS
+  // review reminders and re-arm local notifications. Scheduling at background time
+  // means the queue reflects the freshest card state and costs nothing while the
+  // user is active. No-ops on web and when notification permission was never granted.
+  useEffect(() => {
+    if (!isNative()) return;
+    let remove: (() => void) | undefined;
+    let disposed = false;
+    void (async () => {
+      const { App: CapApp } = await import('@capacitor/app');
+      const handle = await CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) void scheduleFsrsReminders();
       });
       if (disposed) {
         void handle.remove();
@@ -286,6 +312,9 @@ function App() {
     cardSnapshot: Array<[string, import('./game/fsrs-scheduler').CardState | null]>;
   }) => {
     if (!pendingAbility) return;
+    // First completed review session is the moment to ask for notification
+    // permission (native only, once). Fire-and-forget; it never blocks the flow.
+    void maybeRequestNotificationPermission();
     const snapshotForRetry: RetrySnapshot | null = pendingSnapshot
       ? { ...pendingSnapshot, cards: cardSnapshot }
       : null;
