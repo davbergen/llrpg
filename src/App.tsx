@@ -35,7 +35,7 @@ import Profile from './screens/Profile';
 import ConsentGate from './screens/ConsentGate';
 import Shop from './screens/Shop';
 import SignIn from './screens/SignIn';
-import { useAuth, ensureHeroRow, signOut } from './auth';
+import { useAuth, ensureHeroRow, signOut, exchangeDeepLinkCode } from './auth';
 import { getOrCreateGuestId } from './repos/guestId';
 import { STREAK_MILESTONE_GOLD } from './game/streak-milestones';
 import { useScheduledDeletion } from './gdpr/useScheduledDeletion';
@@ -129,6 +129,31 @@ function App() {
       cancelled = true;
     };
   }, [authUserId]);
+
+  // Native only: finish Google OAuth when the system browser returns to the app
+  // via our custom-scheme deep link. The web build never receives this event.
+  useEffect(() => {
+    if (!isNative()) return;
+    let remove: (() => void) | undefined;
+    let disposed = false;
+    void (async () => {
+      const { App: CapApp } = await import('@capacitor/app');
+      const handle = await CapApp.addListener('appUrlOpen', ({ url }) => {
+        void exchangeDeepLinkCode(url).catch((e) => {
+          console.error('OAuth deep-link exchange failed:', e);
+        });
+      });
+      if (disposed) {
+        void handle.remove();
+      } else {
+        remove = () => void handle.remove();
+      }
+    })();
+    return () => {
+      disposed = true;
+      remove?.();
+    };
+  }, []);
 
   // Best-effort flush of any queued remote write when the tab regains focus / network.
   useEffect(() => {
