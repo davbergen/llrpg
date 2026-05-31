@@ -7,21 +7,8 @@
 // editing the sim or loosening bands. Only game-side knobs may change.
 
 import { describe, it, expect } from 'vitest';
-import { DUNGEONS, type ParsedDungeon } from '../content/dungeons';
+import { DUNGEONS } from '../content/dungeons';
 import { evaluateDungeon, type DungeonEvaluation } from './evaluate';
-
-// Provisional intended-level map keyed by dungeon id. The dungeon-meta slice
-// will move "intended level + tier" onto the dungeon front-matter; until then
-// this is the loop's working assumption for where each dungeon should sit.
-const PROVISIONAL_LEVEL: Record<string, number> = {
-  'forest-of-first-words': 2,
-  'cavern-of-counting': 4,
-  'tower-of-tenses': 6,
-};
-
-function intendedLevel(d: ParsedDungeon): number {
-  return PROVISIONAL_LEVEL[d.meta.id] ?? Math.max(1, d.meta.order * 2);
-}
 
 function formatLine(e: DungeonEvaluation): string {
   const cls = e.classes
@@ -35,7 +22,7 @@ function formatLine(e: DungeonEvaluation): string {
 }
 
 describe('balance bands', () => {
-  const results = DUNGEONS.map((d) => evaluateDungeon(d, intendedLevel(d)));
+  const results = DUNGEONS.map((d) => evaluateDungeon(d, d.meta.intendedLevel));
 
   // Human-readable report regardless of pass/fail.
   const report = [
@@ -50,7 +37,7 @@ describe('balance bands', () => {
 
   for (const d of DUNGEONS) {
     it(`${d.meta.id} passes the bands at its intended level`, () => {
-      const e = evaluateDungeon(d, intendedLevel(d));
+      const e = evaluateDungeon(d, d.meta.intendedLevel);
       expect(e.failures).toEqual([]);
     });
   }

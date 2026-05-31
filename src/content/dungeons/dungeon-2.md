@@ -9,6 +9,8 @@ id: crypt-of-conjugations
 name: Crypt of Conjugations
 sprite: 🪦
 order: 2
+tier: 2
+intendedLevel: 4
 unlocksFrom: forest-of-first-words
 ---
 ---

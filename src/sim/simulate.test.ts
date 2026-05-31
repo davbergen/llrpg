@@ -41,11 +41,11 @@ describe('maxEffectiveCounter', () => {
 
 describe('dungeonOneShots', () => {
   const oneShot: ParsedDungeon = {
-    meta: { id: 'os', name: 'os', sprite: '💀', order: 99, unlocksFrom: null },
+    meta: { id: 'os', name: 'os', sprite: '💀', order: 99, tier: 9, intendedLevel: 1, unlocksFrom: null },
     monsters: [fakeMonster({ counterDamage: 999 })],
   };
   const safe: ParsedDungeon = {
-    meta: { id: 'safe', name: 'safe', sprite: '🛡️', order: 99, unlocksFrom: null },
+    meta: { id: 'safe', name: 'safe', sprite: '🛡️', order: 99, tier: 9, intendedLevel: 1, unlocksFrom: null },
     monsters: [fakeMonster({ counterDamage: 5 })],
   };
 

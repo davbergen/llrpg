@@ -9,6 +9,8 @@ id: forest-of-first-words
 name: Forest of First Words
 sprite: 🌲
 order: 1
+tier: 1
+intendedLevel: 2
 ---
 ---
 kind: monster

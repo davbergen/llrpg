@@ -9,6 +9,8 @@ id: spire-of-kanji
 name: Spire of Kanji
 sprite: 🗼
 order: 3
+tier: 3
+intendedLevel: 6
 unlocksFrom: crypt-of-conjugations
 ---
 ---
