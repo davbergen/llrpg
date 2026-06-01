@@ -116,6 +116,13 @@ export interface MatchedWord {
   kana: Set<string>;
   /** Coarse POS categories across all of this word's senses. */
   posCategories: Set<PosCategory>;
+  /**
+   * Coarse category of the *primary* sense's first POS code
+   * (`sense[0].partOfSpeech[0]`). The most representative single category — the
+   * spine generator stores this so e.g. 運動 derives as `noun`, not `verb`.
+   * Falls back to 'other' when no sense carries a POS code.
+   */
+  primaryPos: PosCategory;
   /** Lower-cased English glosses across all senses. */
   glosses: string[];
 }
@@ -155,11 +162,15 @@ function buildIndex(): JmdictIndex {
     const kana = new Set(w.kana.map((k) => k.text));
     const posCategories = new Set<PosCategory>();
     const glosses: string[] = [];
+    let primaryPos: PosCategory | null = null;
     for (const s of w.sense) {
       for (const p of s.partOfSpeech) posCategories.add(categoryOf(p));
+      if (primaryPos === null && s.partOfSpeech.length > 0) {
+        primaryPos = categoryOf(s.partOfSpeech[0]);
+      }
       for (const g of s.gloss) glosses.push(g.text.toLowerCase());
     }
-    const word: MatchedWord = { kana, posCategories, glosses };
+    const word: MatchedWord = { kana, posCategories, primaryPos: primaryPos ?? 'other', glosses };
     const forms = new Set<string>();
     for (const k of w.kanji) forms.add(k.text);
     for (const k of w.kana) forms.add(k.text);

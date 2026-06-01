@@ -60,6 +60,12 @@ describe('JMdict index', () => {
     // ああ ("Ah!, Oh!") has no kanji; the kana form is the headword.
     expect(lookupVocab(index, 'ああ', 'ああ')).not.toBeNull();
   });
+
+  it('exposes the primary-sense POS for derivation', () => {
+    // 運動 ("exercise") is a noun first, verb (vs) second — primaryPos picks noun.
+    expect(lookupVocab(index, '運動', 'うんどう')?.primaryPos).toBe('noun');
+    expect(lookupVocab(index, '水', 'みず')?.primaryPos).toBe('noun');
+  });
 });
 
 describe('validateVocabEntry', () => {

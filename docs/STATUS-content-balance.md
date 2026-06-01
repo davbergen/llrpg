@@ -8,10 +8,13 @@
 Stage 0 (harness) **done and green**. Loss state (B1/B2) done. Balance blocker
 resolved (2026-06-01). **DoD B is now COMPLETE** (2026-06-01): **8 dungeons** exist
 as a tiered DAG and **all 8 pass the bands** for all 3 classes. The sim gate is
-fully green. **DoD C (spine) is now IN PROGRESS:** slice **C1 (correctness gate
-+ blessed-list reader) is done and green** (2026-06-01). Remaining: **C2**
-(regenerate the vocab spine from the blessed N5/N4 lists, gated) and any
-kanji/grammar follow-up.
+fully green. **DoD C (spine) is now IN PROGRESS:** slices **C1** (correctness
+gate + blessed-list reader) and **C2** (vocab spine regenerated from the blessed
+N5/N4 lists, kana readings, gated) are **done and green** (2026-06-01). The
+four-part gate is green at **290 tests** + sim 9/9. **Remaining for DoD C:** a
+**human decision on 14 residual blessed rows** that JMdict-common cannot
+corroborate (the "100%-present" checkbox is human-owned — see C2 below) and the
+**kanji/grammar follow-up**.
 
 ## DoD C — spine (in progress)
 
@@ -34,7 +37,66 @@ nothing lands in the bundle):
 723/667 reflect the older full-width source shape; the committed CSVs are the
 standard `expression,reading,meaning,tags,guid` shape).
 
-### C2 — regenerate vocab spine from the blessed lists ⬜ NEXT
+### C2 — regenerate vocab spine from the blessed lists ✅ (this slice)
+
+**Done.** `src/content/spine/generate-vocab.ts` (build/test-time only) reads the
+blessed N5/N4 lists and resolves each row against JMdict-common through a
+mechanical normalization cascade, then *derives* POS from the matched word's
+primary sense. It rewrote `vocab.md` from the hand-authored 200-entry romaji
+prototype to **1361 kana entries** (N5 707 + N4 654). Run it with
+`GEN_VOCAB=1 npx vite-node src/content/spine/generate-vocab.ts`.
+
+- **Normalization cascade** (`candidatePairs`): three priority tiers, each under
+  every subset of six mechanical transforms (paren-strip, `～`-strip, honorific
+  お/ご-strip, trailing する-strip, familiar さん-strip, adverbial と-strip),
+  applied fewest-first so the faithful reading always wins:
+  1. written-form × reading cross product (also splits multi-form rows on
+     `;`/`；`/`、`);
+  2. each form as its own reading — kana headwords, an empty reading column
+     (`かまう / `), swapped columns (`いただく / 頂く`);
+  3. each reading as a form — orthographic variants (`真中 → 真ん中/まんなか`),
+     **meaning-gated** so a bare-kana homophone (`～杯/はい` vs `はい` "yes") is
+     rejected, not silently matched. *(This gate was the key correctness fix — an
+     un-gated reading-as-form fallback mis-matched 6 counters to homophones.)*
+- **POS**: `MatchedWord.primaryPos` (added to the JMdict index) = coarse category
+  of `sense[0].partOfSpeech[0]`, so `運動 → noun` (not verb), `元気 → adjective`.
+- **Meaning**: keep the blessed gloss when it overlaps a JMdict gloss; otherwise
+  fall back to the matched word's first gloss (still dictionary-sourced, never
+  invented). 55 entries took the fallback.
+- **id**: `${jp}:${reading}` (the unique lookup key). `cardKey` joins with `::`,
+  so the single `:` in an id never collides. 11 rows resolved to an
+  already-emitted id and were dropped as duplicates (N5-first, so a cross-level
+  word is tagged at the lower level).
+- **Readings are now kana** (`reading: みず`, not `mizu`) and **faces are
+  `[recall, reverse]`** (both deterministically gradable; no cloze sentences are
+  authored for generated entries). `SPINE_VERSION` bumped **2 → 3** to invalidate
+  persisted FSRS card state (ids + readings + faces all changed).
+- **Coverage test** (`generate-vocab.test.ts`, folded into `npm test`): every
+  emitted entry passes `validateVocabEntry` with its meaning; ids are unique and
+  `jp:reading`-shaped; readings carry no romaji; **every blessed row is accounted
+  for** (entry | duplicate | documented residual) per level; and the committed
+  `vocab.md` matches `renderVocabMarkdown(generateVocab())` byte-for-byte (so it
+  can't drift or be hand-edited).
+
+**⚠️ Escalation — 14 residual rows (human decision, david).** These blessed rows
+do not resolve against JMdict-common after the full cascade. Per the contract
+("100%-present is human-owned — a stubborn residue is an escalation, not a silent
+drop"), they are captured in `src/content/spine/vocab-residuals.ts` and the
+coverage test asserts the generator's residual set **equals that allowlist
+exactly** (no silent growth). They are NOT in the spine, so the DoD "N5/N4 100%
+present" checkbox is **not yet truly met** — it's your call how to close it:
+
+| Category | Rows | Suggested resolution |
+|---|---|---|
+| Counter/suffix reading not in JMdict-common (the counter sense is non-common; `月` is only `つき` there) | `～月`, `～杯`, `～屋`, `～家`, `～代`, `～町`, `都`, `建て` | vendor a fuller JMdict slice, or hand-author as `counter`/`suffix` entries |
+| Grammar pattern, not a dictionary word | `いくら～ても` | move to `grammar.md` |
+| Absent from JMdict-common | `テープレコーダー`, `おいでになる`, `もうすぐ` | vendor fuller JMdict, or accept omission |
+| Reading not the one common attests (`私` carries `わたし`, not `わたくし`) | `私/わたくし` | accept `わたし`, or accept omission |
+| Malformed source row (truncated) | `ラジオカセ` | fix upstream blessed CSV |
+
+---
+
+#### Original C2 plan + measured findings (pre-implementation, retained for reference)
 
 Plan + measured findings (re-run with a vite-node script over `lookupVocab`):
 
@@ -188,13 +250,19 @@ classes; the `.md` flavor note was updated).
 - ✅ Every dungeon **passes the bands** for all 3 classes at its intended level.
 
 ### C. Content (spine) — 🟡 IN PROGRESS
-- **C1 done** (commit `eee86ea`): the JMdict correctness gate + blessed-list
-  reader exist and are unit-tested (`src/content/spine/jmdict.ts`, `blessed.ts`,
-  `jmdict.test.ts`). See the "DoD C — spine" section above for the full C2 plan
-  and measured match rates.
-- **C2 remaining:** regenerate the vocab spine from the blessed N5/N4 lists
-  (100% present, all gate-passing, level-tagged); kanji/grammar follow-up TBD.
-  Vendored data is in `data/vendor/` (Stage 0).
+- **C1 done** (commit `eee86ea`): JMdict correctness gate + blessed-list reader,
+  unit-tested (`jmdict.ts`, `blessed.ts`, `jmdict.test.ts`).
+- **C2 done** (this slice): `vocab.md` regenerated from the blessed N5/N4 lists →
+  **1361 kana entries**, every one gate-passing and level-tagged, with a
+  byte-for-byte sync test. `generate-vocab.ts` + `vocab-residuals.ts` +
+  `generate-vocab.test.ts`; `primaryPos` added to the JMdict index;
+  `SPINE_VERSION` 2 → 3. See the "C2" section above.
+- **Still open for DoD C (human + follow-up):**
+  - ⚠️ **14 residual rows** block a literal "N5/N4 100% present" — escalated via
+    `vocab-residuals.ts` (human decision; see the C2 table).
+  - **kanji/grammar follow-up** (the existing `kanji.md`/`grammar.md` are the
+    hand-authored prototype; regenerating/validating them against the blessed
+    lists is not yet done).
 
 ### D. Gates — build/lint/test green every iteration; sim red by design until B is met.
 
