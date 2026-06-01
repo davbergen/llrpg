@@ -1,61 +1,62 @@
-# Dungeon 3: Spire of Kanji
+# Dungeon 5: Hall of Counters
 
-Late-game dungeon. Boss "Radical Titan" enrages below 50% HP — counter damage
-multiplied by `enrageCounterMultiplier`.
+Tier-3 dungeon reached from the Garden, themed on Japanese counter words
+(個・本・枚・匹・冊). Boss "Counter Colossus" enrages below 50% HP. Same intended
+level (6) as its sibling the Spire; reuses the Spire's tuned boss numbers.
 
 ---
 kind: dungeon
-id: spire-of-kanji
-name: Spire of Kanji
-sprite: 🗼
-order: 4
+id: hall-of-counters
+name: Hall of Counters
+sprite: 🏯
+order: 5
 tier: 3
 intendedLevel: 6
-unlocksFrom: crypt-of-conjugations
+unlocksFrom: garden-of-particles
 ---
 ---
 kind: monster
 template: imp
-name: Stroke Imp
+name: Ippon Imp
 ---
 ---
 kind: monster
 template: golem
-name: Radical Golem
+name: Mai Golem
 hpMultiplier: 1.3
 ---
 ---
 kind: monster
 template: imp
-name: Compound Demon
+name: Ko Fiend
 hpMultiplier: 1.4
 counterMultiplier: 1.1
 ---
 ---
 kind: monster
 template: spectre
-name: On-Yomi Specter
+name: Satsu Specter
 hpMultiplier: 1.5
 ---
 ---
 kind: monster
 template: imp
-name: Kun-Yomi Fiend
+name: Hon Demon
 hpMultiplier: 1.6
 counterMultiplier: 1.2
 ---
 ---
 kind: monster
 template: golem
-name: Joyo Sentinel
+name: Dai Sentinel
 hpMultiplier: 1.8
 counterMultiplier: 1.3
 ---
 ---
 kind: boss
-id: radical-titan
-name: Radical Titan
-sprite: 🛡️
+id: counter-colossus
+name: Counter Colossus
+sprite: 🏯
 maxHp: 260
 counterDmg: 18
 goldMin: 80

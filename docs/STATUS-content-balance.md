@@ -5,21 +5,64 @@
 
 ## TL;DR
 
-Stage 0 (harness) **done and green**. Loss state (B1/B2) done. **The balance
-blocker is now RESOLVED** (2026-06-01): all **3 existing dungeons pass the bands**
-for all 3 classes via a human-authorized **3-class rebalance + a struggling-floor
-band relaxation** (see "Balance resolution" below). The only remaining sim-gate
-failure is the structural **"8 dungeons, not 3"** count — that is the next slice
-(author 5 more dungeons), not a balance failure.
+Stage 0 (harness) **done and green**. Loss state (B1/B2) done. Balance blocker
+resolved (2026-06-01). **DoD B is now COMPLETE** (2026-06-01): **8 dungeons** exist
+as a tiered DAG and **all 8 pass the bands** for all 3 classes. The sim gate is
+fully green. Remaining: **DoD C (spine)** — net-new and independent of balance.
 
-## Gate status (after balance-tuning slice, 2026-06-01)
+## Gate status (after the 5-dungeon slice, 2026-06-01)
 
 - `npm run build` (tsc) — ✅ green
 - `npm run lint` — ✅ green (2 pre-existing warnings in `components/rpg/index.tsx`, not ours)
-- `npm test` — ✅ green (259)
-- `npm run sim` (balance gate) — 🟡 **3/4**: all three band tests PASS; only the
-  `has exactly 8 tiered dungeons (DoD B)` test fails (3 dungeons, not 8). Red purely
-  on dungeon *count*, no longer on *balance*.
+- `npm test` — ✅ green (261)
+- `npm run sim` (balance gate) — ✅ **green (9/9)**: all 8 dungeons pass the bands
+  at their intended level, and the `has exactly 8 tiered dungeons` count test passes.
+
+## Dungeon DAG (8 dungeons, after the 5-dungeon slice)
+
+```
+                 forest-of-first-words  (T1, L2)        ← root
+                  /                       \
+   crypt-of-conjugations (T2,L4)   garden-of-particles (T2,L4)
+            |                                |
+     spire-of-kanji (T3,L6)          hall-of-counters (T3,L6)
+        /         \                          |
+citadel-of-keigo  labyrinth-of-loanwords   sanctum-of-idioms
+   (T4,L6)            (T4,L6)                  (T4,L6)
+```
+
+Tiers 1→4 with branching (forest unlocks two tier-2 dungeons; the two tier-3
+dungeons fan out into three tier-4 dungeons), so several dungeons are "available"
+at once — matching DoD B.
+
+**Why tier 4 is intended-level 6, not higher.** The endgame tier is *harder via
+tankier/late-enrage bosses, not a higher intended level.* This is forced by the
+class-balance math, not laziness:
+
+- The three classes only stay mutually in-band **below level 7**. At L7 the premium
+  spenders unlock (mage Cataclysm 100 / warrior Execute 130 / priest Judgment 95)
+  and break class symmetry: mage's no-ramp burst kills the boss in ~6 casts while
+  warrior/priest gate their nuke behind a rage/faith ramp (~10–12 casts), absorbing
+  far more counter. Sim sweep at L8 confirmed the wall — e.g. boss HP 500/counter 20
+  gives **mage 100% / warrior 0% / priest 0%**, and no boss-knob set closes it
+  (the survival-counter thresholds for 6-cast vs 12-cast classes do not overlap).
+  Fixing it would require editing class ability numbers — **not a sanctioned knob**
+  for this loop (guardrail #4). So the loop keeps all dungeons at L≤6.
+- At L6 the passing window is itself a needle around the Spire's config
+  (~260 HP / 18 counter / enrage 0.5×1.4): below it, the priest's Greater Heal
+  makes it immortal (100%); above it, mage/warrior cliff to 0%. The three tier-4
+  bosses were tuned to three distinct in-band points within that needle (see table).
+
+| Dungeon | Tier/L | Boss | HP / counter / enrage | typical m/w/p |
+|---|---|---|---|---|
+| garden-of-particles | 2 / L4 | Particle Sovereign | 260 / 15 / 0.5×1.5 | 82 / 62 / 74 |
+| hall-of-counters    | 3 / L6 | Counter Colossus   | 260 / 18 / 0.5×1.4 | 79 / 84 / 77 |
+| citadel-of-keigo    | 4 / L6 | Keigo Emperor      | 262 / 18 / 0.5×1.4 | 72 / 80 / 70 |
+| sanctum-of-idioms   | 4 / L6 | Idiom Sphinx       | 264 / 19 / 0.5×1.35 | 68 / 81 / 65 |
+| labyrinth-of-loanwords | 4 / L6 | Loanword Leviathan | 264 / 18 / 0.45×1.5 | 68 / 76 / 61 |
+
+(The sim seed is keyed on dungeon id, so identical boss numbers under different ids
+give slightly different win rates — each dungeon was tuned under its own id.)
 
 ## Balance resolution (2026-06-01, human-directed session, HITL ×4)
 
@@ -74,10 +117,11 @@ classes; the `.md` flavor note was updated).
 - Unit-tested (`src/sim/simulate.test.ts`, in `npm test`) + dedicated gate `npm run sim`.
 - Bands are named constants in one human-owned module (`src/sim/bands.ts`).
 
-### B. Dungeons — 🟡 PARTIAL
+### B. Dungeons — ✅ DONE (2026-06-01)
 - ✅ Each dungeon declares intended `tier` + `intendedLevel`.
-- ✅ All **3 existing dungeons pass the bands** for all 3 classes (2026-06-01).
-- ❌ Only 3 dungeons exist; DoD requires **8 in a tiered DAG** — next slice.
+- ✅ **8 dungeons** exist as a tiered DAG (tiers 1→4 with branching) — see the
+  Dungeon DAG section above.
+- ✅ Every dungeon **passes the bands** for all 3 classes at its intended level.
 
 ### C. Content (spine) — ⬜ NOT STARTED
 - N5 completion, N4 add, JMdict correctness gate, level tags. Vendored data is in
@@ -131,11 +175,15 @@ here; the GitHub issue mirror was not posted — record it on #79/#82 if desired
 
 ## Recommended next slices (in order)
 
-> **DONE since this list was written:** loss state (B1/B2) and **"tune the 3
-> existing bosses" (item 2 below)** — all 3 now pass the bands. Next up is item 3:
-> author 5 more dungeons. New dungeons must clear the same bands; reuse the tuned
-> archetypes (low/mid counter + enrage below 50% is the workhorse pattern; pure
-> boss regen is untunable across classes at these levels — avoid it).
+> **DONE since this list was written:** loss state (B1/B2), **"tune the 3 existing
+> bosses" (item 2)**, and **"author 5 more dungeons" (item 3)** — all 8 dungeons now
+> exist as a tiered DAG and pass the bands. **DoD A and B are complete.** The only
+> remaining work is **item 4: the spine (DoD C)** — net-new, independent of balance.
+>
+> Tuning lessons banked for any future dungeon work: low/mid counter + enrage below
+> 50% is the workhorse pattern; pure boss regen is untunable across classes; keep
+> intended level ≤6 (premium spenders at L7 break class symmetry past any boss knob);
+> and the L6 passing window is a needle around 260 HP / 18 counter / enrage 0.5×1.4.
 
 1. **Loss state (game-design).** Defeat cost **decided** (B1/#79: retreat + full
    heal + monster HP reset, no penalty — see Blocker section above). Implement:
