@@ -1,14 +1,78 @@
 # Content & Balance loop — status & handoff
 
 > Working branch: `auto/content-balance` (never merged to main by the loop).
-> Goal contract: `docs/GOAL-content-balance.md`. Last updated 2026-05-31.
+> Goal contract: `docs/GOAL-content-balance.md`. Last updated 2026-06-01.
 
 ## TL;DR
 
 Stage 0 (harness) **done and green**. Loss state (B1/B2) done. Balance blocker
 resolved (2026-06-01). **DoD B is now COMPLETE** (2026-06-01): **8 dungeons** exist
 as a tiered DAG and **all 8 pass the bands** for all 3 classes. The sim gate is
-fully green. Remaining: **DoD C (spine)** — net-new and independent of balance.
+fully green. **DoD C (spine) is now IN PROGRESS:** slice **C1 (correctness gate
++ blessed-list reader) is done and green** (2026-06-01). Remaining: **C2**
+(regenerate the vocab spine from the blessed N5/N4 lists, gated) and any
+kanji/grammar follow-up.
+
+## DoD C — spine (in progress)
+
+### C1 — correctness gate + blessed reader ✅ (commit `eee86ea`)
+
+Build/test-time-only foundation (neither module is imported by client code, so
+nothing lands in the bundle):
+
+- `src/content/spine/jmdict.ts` — decompresses the vendored
+  `jmdict-eng-common` zip (PK/deflate via `zlib.inflateRawSync`), indexes words
+  by written form (kanji + kana), maps all 52 fine JMdict POS codes → coarse
+  spine categories (`categoryOf`), and exposes `validateVocabEntry()` (form +
+  kana reading + POS + optional meaning-overlap) and `lookupVocab()`.
+- `src/content/spine/blessed.ts` — quote-aware CSV reader for the blessed N5/N4
+  membership lists; throws on malformed rows.
+- `jmdict.test.ts` — 16 tests (POS map, meaning overlap, index, gate
+  accept/reject paths, list reader). `npm test` now 277 (was 261).
+
+**Actual vendored list sizes: N5 = 718, N4 = 668 data rows** (the MANIFEST's
+723/667 reflect the older full-width source shape; the committed CSVs are the
+standard `expression,reading,meaning,tags,guid` shape).
+
+### C2 — regenerate vocab spine from the blessed lists ⬜ NEXT
+
+Plan + measured findings (re-run with a vite-node script over `lookupVocab`):
+
+- **Exact `(expression, reading)` JMdict match rate before normalization:**
+  N5 **648/718 (90%)**, N4 **586/668 (88%)**. Every miss is a *mechanical*
+  normalization, not bad data:
+  1. **Multi-form rows** packed with `; ` — `足; 脚` / `あし`, `いい; よい`,
+     `川; 河`. → split expression *and* reading on `;`/`；`, try each combo.
+  2. **Prefix/suffix markers `～`** — `～円`, `～回`, `～区`, `～月`. → strip `～`
+     and look up the bare form (these become counter/suffix POS).
+  3. **Suru-verbs** — `運動`/`うんどうする`, `心配`/`しんぱいする`. The bare form
+     already matches (`formOnly`); → strip trailing `する` from the reading
+     (POS becomes noun-with-`vs`).
+  4. **Honorific お/ご** — `お酒`/`おさけ`, `お皿`. → try with and without the
+     honorific prefix.
+  5. **Parentheticals** — `パート (タイム)`, `～ございます`. → strip `(...)`.
+- **POS derivation:** pick the *primary* sense's first POS code
+  (`words[].sense[0].partOfSpeech[0]`) → most accurate (`運動`→noun not verb,
+  `元気`→adjective). Add `primaryPos` to the JMdict index in C2.
+- **Build a residual allowlist** of any rows that *still* don't resolve after
+  normalization, characterize them, and decide per the contract (100%-present
+  is human-owned — a stubborn residue is an escalation, not a silent drop).
+- **id strategy:** the current spine uses english slugs; 1.4k entries need
+  unique, *stable* ids (they key persisted FSRS cards via `cardKey`). Candidate:
+  `${jp}:${reading}` (the unique lookup key). Verify the `cardKey` separator
+  won't collide first.
+- **Reading format change (flag for human review):** the current 200 entries
+  store **romaji** readings (`reading: mizu`); the blessed source + JMdict are
+  **kana** (`みず`). The gate validates against kana, and the contract mandates
+  membership from the blessed list, so C2 regenerates with **kana** readings,
+  replacing the hand-authored romaji prototype set. This is a visible product
+  change (the `recall` face subtitle under the kanji becomes kana, not romaji) —
+  pedagogically standard, but call it out at merge.
+- **Consumer migration to check before C2 lands green:** `card-renderer`
+  (`recall` subtitle, kanji `reading` face), placement test, lesson-composer,
+  and any test asserting on the current 200 entries or romaji readings.
+- After C2, fold the vocab spine-coverage assertion (every entry passes
+  `validateVocabEntry`; N5/N4 lists 100% present) into `npm test`.
 
 ## Gate status (after the 5-dungeon slice, 2026-06-01)
 
@@ -123,9 +187,14 @@ classes; the `.md` flavor note was updated).
   Dungeon DAG section above.
 - ✅ Every dungeon **passes the bands** for all 3 classes at its intended level.
 
-### C. Content (spine) — ⬜ NOT STARTED
-- N5 completion, N4 add, JMdict correctness gate, level tags. Vendored data is in
-  `data/vendor/` (Stage 0, pre-existing). No spine work done this session.
+### C. Content (spine) — 🟡 IN PROGRESS
+- **C1 done** (commit `eee86ea`): the JMdict correctness gate + blessed-list
+  reader exist and are unit-tested (`src/content/spine/jmdict.ts`, `blessed.ts`,
+  `jmdict.test.ts`). See the "DoD C — spine" section above for the full C2 plan
+  and measured match rates.
+- **C2 remaining:** regenerate the vocab spine from the blessed N5/N4 lists
+  (100% present, all gate-passing, level-tagged); kanji/grammar follow-up TBD.
+  Vendored data is in `data/vendor/` (Stage 0).
 
 ### D. Gates — build/lint/test green every iteration; sim red by design until B is met.
 
