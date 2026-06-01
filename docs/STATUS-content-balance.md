@@ -5,16 +5,59 @@
 
 ## TL;DR
 
-Stage 0 (harness) is **done and green**. Dungeon meta is plumbed. The loop then
-hit a **genuine design blocker** that needs a human decision before any dungeon
-can pass the bands — see "Blocker" below. Paused there deliberately.
+Stage 0 (harness) **done and green**. Loss state (B1/B2) done. **The balance
+blocker is now RESOLVED** (2026-06-01): all **3 existing dungeons pass the bands**
+for all 3 classes via a human-authorized **3-class rebalance + a struggling-floor
+band relaxation** (see "Balance resolution" below). The only remaining sim-gate
+failure is the structural **"8 dungeons, not 3"** count — that is the next slice
+(author 5 more dungeons), not a balance failure.
 
-## Gate status (current HEAD `bed1633`)
+## Gate status (after balance-tuning slice, 2026-06-01)
 
 - `npm run build` (tsc) — ✅ green
 - `npm run lint` — ✅ green (2 pre-existing warnings in `components/rpg/index.tsx`, not ours)
-- `npm test` — ✅ green (254)
-- `npm run sim` (balance gate) — 🔴 **intentionally red** (3 dungeons, not 8; not in band)
+- `npm test` — ✅ green (259)
+- `npm run sim` (balance gate) — 🟡 **3/4**: all three band tests PASS; only the
+  `has exactly 8 tiered dungeons (DoD B)` test fails (3 dungeons, not 8). Red purely
+  on dungeon *count*, no longer on *balance*.
+
+## Balance resolution (2026-06-01, human-directed session, HITL ×4)
+
+The original blocker (below) assumed warrior was *the* outlier. Sim grid-search
+proved it was a **three-way class misalignment** plus a math wall:
+
+1. **Warrior fragile, priest damage-starved, mage over-survivable.** Warrior's
+   premium spender (Execute) and priest's (Judgment) unlock at L7 — above every
+   dungeon — so at intended level their DPS trailed mage's nukes; mage's burst +
+   Frostbolt mitigation made it near-unkillable. No boss-knob set fixed all three.
+2. **Struggling-guardrail vs full-length lessons is a math wall.** With 5/10/15/20-q
+   lessons, realized accuracy concentrates tightly → win-rate is a near-deterministic
+   step of accuracy. A 0.70-accuracy "struggling" player therefore can't reach >25%
+   at any config where the 0.85 "typical" player sits in 60–85% (proven by sweep).
+   Only ~1-question lessons soften the curve enough — which would gut the PRD's
+   lesson-length pillar.
+
+**Human decisions (david):** (a) rebalance **all three** classes' ability numbers;
+(b) **keep full-length lessons**, accept balance need not be mathematically perfect,
+and note classes will complement each other once **multiplayer** lands; (c) therefore
+**relax the human-owned struggling guardrail** (`strugglingWinRateMin` 0.25 → 0 in
+`bands.ts`, documented inline as a human-authorized change). The **typical band
+(60–85%) remains the binding definition of balanced** and is met by all 3 classes.
+
+**Final tuned state** (typical win %, all casts 7–9, all threatening at 12–16% end HP):
+
+| Dungeon | L | mage / warrior / priest | Boss knobs |
+|---|---|---|---|
+| Forest of First Words | 2 | 77 / 75 / 75 | maxHp 150, counter 16 (no mechanic) |
+| Crypt of Conjugations | 4 | 76 / 64 / 75 | maxHp 260, counter 15, enrage <50% ×1.5 |
+| Spire of Kanji        | 6 | 79 / 82 / 78 | maxHp 260, counter 18, enrage <50% ×1.4 |
+
+Ability changes in `class-abilities.ts`: warrior Cleave 24→26/g3→4, Reckless
+32→44/g4→5, Bash 50→48, Execute 110→130; priest Smite 10→12, Holy Bolt 22→26,
+Radiant Strike 38→48, Judgment 80→95; mage Frostbolt reduction 0.5→0.35, Meteor
+65→38, Chain Lightning 70→40 (mage L5–6 nukes trimmed — they only affect Spire).
+Crypt's boss mechanic re-themed regen → enrage (pure regen made L4 untunable across
+classes; the `.md` flavor note was updated).
 
 ## Commits this session (oldest → newest)
 
@@ -33,8 +76,8 @@ can pass the bands — see "Blocker" below. Paused there deliberately.
 
 ### B. Dungeons — 🟡 PARTIAL
 - ✅ Each dungeon declares intended `tier` + `intendedLevel`.
-- ❌ Only 3 dungeons exist; DoD requires **8 in a tiered DAG**.
-- ❌ None pass the bands (blocked — see below).
+- ✅ All **3 existing dungeons pass the bands** for all 3 classes (2026-06-01).
+- ❌ Only 3 dungeons exist; DoD requires **8 in a tiered DAG** — next slice.
 
 ### C. Content (spine) — ⬜ NOT STARTED
 - N5 completion, N4 add, JMdict correctness gate, level tags. Vendored data is in
@@ -87,6 +130,12 @@ B1 is done; **B2 (#82) implements exactly this model.** (Decision is recorded
 here; the GitHub issue mirror was not posted — record it on #79/#82 if desired.)
 
 ## Recommended next slices (in order)
+
+> **DONE since this list was written:** loss state (B1/B2) and **"tune the 3
+> existing bosses" (item 2 below)** — all 3 now pass the bands. Next up is item 3:
+> author 5 more dungeons. New dungeons must clear the same bands; reuse the tuned
+> archetypes (low/mid counter + enrage below 50% is the workhorse pattern; pure
+> boss regen is untunable across classes at these levels — avoid it).
 
 1. **Loss state (game-design).** Defeat cost **decided** (B1/#79: retreat + full
    heal + monster HP reset, no penalty — see Blocker section above). Implement:

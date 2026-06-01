@@ -103,9 +103,13 @@ describe('combat-engine', () => {
     });
 
     it('reduces counter by counter_reduction effect', () => {
-      // frostbolt has counter_reduction 0.5
       const targetIndex = 2;
       const monster = D1_MONSTERS[targetIndex];
+      // Derive the expected reduction from the ability itself so the test tracks
+      // balance tuning of frostbolt's counter_reduction fraction.
+      const reduction = mageFrostbolt.effects
+        .filter((e): e is { kind: 'counter_reduction'; fraction: number } => e.kind === 'counter_reduction')
+        .reduce((acc, e) => acc + e.fraction, 0);
       const result = applyAbility({
         dungeonState: stateAt(targetIndex),
         ability: mageFrostbolt,
@@ -113,7 +117,7 @@ describe('combat-engine', () => {
         lessonAccuracy: 1,
         equipmentDamageBonus: 0,
       });
-      expect(result.counterDamage).toBe(Math.round(monster.counterDamage * 0.5));
+      expect(result.counterDamage).toBe(Math.round(monster.counterDamage * (1 - reduction)));
     });
   });
 

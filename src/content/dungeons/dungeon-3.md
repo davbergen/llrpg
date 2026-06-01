@@ -57,11 +57,11 @@ id: radical-titan
 name: Radical Titan
 sprite: 🛡️
 maxHp: 260
-counterDmg: 22
+counterDmg: 18
 goldMin: 80
 goldMax: 100
 itemDropChance: 1
 guaranteedItem: true
 enrageBelowPct: 0.5
-enrageCounterMultiplier: 1.5
+enrageCounterMultiplier: 1.4
 ---

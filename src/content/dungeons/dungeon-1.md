@@ -51,8 +51,8 @@ kind: boss
 id: grammar-dragon
 name: Grammar Dragon
 sprite: 🐉
-maxHp: 120
-counterDmg: 15
+maxHp: 150
+counterDmg: 16
 goldMin: 50
 goldMax: 75
 itemDropChance: 1

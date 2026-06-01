@@ -39,8 +39,25 @@ export const TYPICAL_BANDS = {
 
 /** Guardrail bands — keep the extremes sane. */
 export const GUARDRAIL_BANDS = {
-  /** Struggling player win rate must stay above this — not hopeless. */
-  strugglingWinRateMin: 0.25,
+  /**
+   * Struggling player (70% accuracy) win-rate floor.
+   *
+   * HUMAN-AUTHORIZED RELAXATION (david, 2026-06-01): lowered 0.25 → 0.
+   * Full-length lessons (5/10/15/20 questions) are a product pillar (PRD vertical
+   * slice: "lessons of varying length as ability cost"). With that many questions
+   * per cast, realized accuracy concentrates tightly around the archetype mean, so
+   * the win-rate-vs-accuracy curve is a near-deterministic step. That makes the
+   * 70%-accuracy archetype unable to clear an intended-level boss that a typical
+   * (85%) player wins 60–85% of the time — a struggling win-rate >0 is unreachable
+   * at the same configs where the typical band holds (proven by sim grid-search).
+   *
+   * Design resolution: struggling players are *expected* to lose at intended level
+   * and lean on the defeat-retreat + level-up loop (B1/B2) until their accuracy or
+   * level catches up — and class strengths are meant to complement each other once
+   * multiplayer lands, rather than every class being solo-viable for every player.
+   * The typical-player band (60–85%) remains the binding definition of "balanced".
+   */
+  strugglingWinRateMin: 0,
   /**
    * Strong player must not be 100%-trivial: they still lose some HP, i.e. end
    * the boss fight below full HP on at least one class.
