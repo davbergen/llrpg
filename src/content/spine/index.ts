@@ -9,7 +9,7 @@ export type { SpineEntry, SpineFace, SpineFileType } from './parser';
  * Bumped whenever the shape of the spine changes (new file, new face, schema
  * change). Persisted card-state code can use this to invalidate caches.
  */
-export const SPINE_VERSION = 2;
+export const SPINE_VERSION = 4;
 
 export const VOCAB_SPINE: readonly SpineEntry[] = vocab;
 export const GRAMMAR_SPINE: readonly SpineEntry[] = grammar;

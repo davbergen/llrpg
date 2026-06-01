@@ -9,6 +9,8 @@ id: forest-of-first-words
 name: Forest of First Words
 sprite: 🌲
 order: 1
+tier: 1
+intendedLevel: 2
 ---
 ---
 kind: monster
@@ -49,8 +51,8 @@ kind: boss
 id: grammar-dragon
 name: Grammar Dragon
 sprite: 🐉
-maxHp: 120
-counterDmg: 15
+maxHp: 150
+counterDmg: 16
 goldMin: 50
 goldMax: 75
 itemDropChance: 1

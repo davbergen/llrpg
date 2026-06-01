@@ -3,7 +3,7 @@ import type { ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadLocalSync, localOnlyRepo, authedRepo, WriteThroughRepo, type Repo } from './repos';
 import { getActiveMonsters } from './game/dungeon';
-import { applyAbility, clampPlayerHp } from './game/combat-engine';
+import { applyAbility, resolvePlayerHp } from './game/combat-engine';
 import { findAbilityById } from './game/class-abilities';
 import { emptySecondaryResources, canAffordSecondary } from './game/secondary-resources';
 import { resolveMana, spendMana, canAffordAbility, applyFirstLessonBonus, initialManaState } from './game/mana';
@@ -68,6 +68,7 @@ function App() {
   const [pendingLoot, setPendingLoot] = useState<LootReward | null>(null);
   const [pendingSnapshot, setPendingSnapshot] = useState<RetrySnapshot | null>(null);
   const [retryPrompt, setRetryPrompt] = useState<{ snapshot: RetrySnapshot; abilityId: string } | null>(null);
+  const [showDefeat, setShowDefeat] = useState(false);
   const [pendingAnimation, setPendingAnimation] = useState<{
     abilityId: string;
     damage: number;
@@ -359,16 +360,39 @@ function App() {
     );
 
     const nextMaxHp = gameState.maxHp + progress.maxHpDelta;
-    const healed = clampPlayerHp(gameState.hp - result.counterDamage) + result.selfHeal;
-    const baseHp = Math.max(1, healed);
-    const nextHp = progress.leveledUp ? nextMaxHp : Math.min(baseHp, nextMaxHp);
+    const hpOutcome = resolvePlayerHp({
+      hp: gameState.hp,
+      counterDamage: result.counterDamage,
+      selfHeal: result.selfHeal,
+      maxHp: nextMaxHp,
+    });
+    // Leveling up restores HP, so a level-up earned this turn saves you from an
+    // otherwise-lethal counter.
+    const defeated = !progress.leveledUp && hpOutcome.defeated;
+    // Defeat cost (B1/#79): retreat to the current monster, fully healed.
+    const nextHp = progress.leveledUp || defeated ? nextMaxHp : hpOutcome.hp;
 
-    const resourcesAfterRun = result.dungeonCleared
-      ? emptySecondaryResources()
-      : result.nextSecondaryResources;
+    const activeId = gameState.dungeonState.activeDungeonId;
+    const resourcesAfterRun =
+      result.dungeonCleared || defeated
+        ? emptySecondaryResources()
+        : result.nextSecondaryResources;
     const dungeonAfterRun = result.dungeonCleared
       ? { ...result.nextDungeonState, pendingDamageMultiplier: undefined }
-      : result.nextDungeonState;
+      : defeated
+        ? {
+            // Retreat: reset the current monster's HP to full and clear queued buffs.
+            ...result.nextDungeonState,
+            progress: {
+              ...result.nextDungeonState.progress,
+              [activeId]: {
+                ...result.nextDungeonState.progress[activeId],
+                currentMonsterHp: monster?.maxHp ?? result.nextDungeonState.progress[activeId].currentMonsterHp,
+              },
+            },
+            pendingDamageMultiplier: undefined,
+          }
+        : result.nextDungeonState;
 
     const now = Date.now();
     const tickResult = tickStreak(streakState, now);
@@ -410,6 +434,16 @@ function App() {
         };
       });
       setPendingAbility(null);
+
+      // Defeat takes priority over a failed-lesson retry: the fight was lost, not
+      // just the lesson. Surface the defeat screen; the player retreats to the
+      // (now full-HP) monster.
+      if (defeated) {
+        setPendingSnapshot(null);
+        setPendingLoot(null);
+        setShowDefeat(true);
+        return;
+      }
 
       // Offer retry on a failed session before navigating away.
       // Skip if the session somehow killed a monster — would require reverting loot/xp.
@@ -488,6 +522,11 @@ function App() {
 
   const handleRetryDecline = () => {
     setRetryPrompt(null);
+    navigate('dungeon');
+  };
+
+  const handleDefeatContinue = () => {
+    setShowDefeat(false);
     navigate('dungeon');
   };
 
@@ -713,6 +752,7 @@ function App() {
               onDecline={handleRetryDecline}
             />
           )}
+          {showDefeat && <DefeatModal onContinue={handleDefeatContinue} />}
         </div>
 
         {/* Home indicator — web frame only; native uses the real gesture bar. */}
@@ -946,6 +986,48 @@ function RetryModal({ gemBalance, onAccept, onDecline }: RetryModalProps) {
             CONTINUE
           </PixelButton>
         </div>
+      </PixelPanel>
+    </div>
+  );
+}
+
+interface DefeatModalProps {
+  onContinue: () => void;
+}
+
+function DefeatModal({ onContinue }: DefeatModalProps) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        zIndex: 100,
+      }}
+    >
+      <PixelPanel style={{ width: '100%', maxWidth: 320 }}>
+        <PixelHeader size={13} color={RPG.red}>
+          DEFEATED
+        </PixelHeader>
+        <div
+          style={{
+            fontFamily: "'Courier Prime', monospace",
+            fontSize: 12,
+            color: RPG.text,
+            lineHeight: 1.5,
+            margin: '12px 0 16px',
+          }}
+        >
+          You fell in battle. You retreat and recover — fully healed, but the monster
+          stands at full strength again. Try once more.
+        </div>
+        <PixelButton onClick={onContinue} sound="confirm" variant="red" style={{ width: '100%' }}>
+          ↩ RETREAT
+        </PixelButton>
       </PixelPanel>
     </div>
   );
