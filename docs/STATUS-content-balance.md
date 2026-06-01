@@ -13,8 +13,12 @@ gate + blessed-list reader) and **C2** (vocab spine regenerated from the blessed
 N5/N4 lists, kana readings, gated) are **done and green** (2026-06-01). The
 four-part gate is green at **290 tests** + sim 9/9. The 14 blessed rows
 JMdict-common cannot corroborate are **accepted as documented omissions**
-(david, 2026-06-01), so **vocab DoD C is complete**. **Remaining for DoD C:** the
-**kanji/grammar follow-up**.
+(david, 2026-06-01), so **vocab DoD C is complete**. The **kanji/grammar
+follow-up (C3) is now done and green** (2026-06-01): `kanji.md` regenerated from
+the blessed N5/N4 kanji lists + KANJIDIC2 (245 entries, 0 residuals), `grammar.md`
+regenerated from the blessed grammar list filtered to N5/N4 (211 entries). The
+four-part gate is green at **304 tests** + sim 9/9. **DoD C is now COMPLETE for
+all three categories.**
 
 ## DoD C — spine (in progress)
 
@@ -96,6 +100,48 @@ locked test re-surfaces any future drift (a 15th residual) for review.
 | Absent from JMdict-common | `テープレコーダー`, `おいでになる`, `もうすぐ` | vendor fuller JMdict, or accept omission |
 | Reading not the one common attests (`私` carries `わたし`, not `わたくし`) | `私/わたくし` | accept `わたし`, or accept omission |
 | Malformed source row (truncated) | `ラジオカセ` | fix upstream blessed CSV |
+
+### C3 — regenerate kanji + grammar from the blessed lists ✅ (this slice)
+
+The hand-authored prototype `kanji.md`/`grammar.md` are replaced by generated,
+gate-locked spines, mirroring C2's vocab pattern (build/test-time-only modules,
+never bundled into the client; a byte-for-byte sync test forbids hand-editing).
+
+**Kanji** (`generate-kanji.ts` + `kanjidic.ts` + `kanji-membership.ts`):
+- Membership: blessed `data/vendor/kanji/n5_kanji.csv` (79) + `n4_kanji.csv` (166).
+- Correctness: vendored **KANJIDIC2** (`kanjidic2.xml.gz`, gunzip + regex-extracted
+  `<character>` blocks; mirrors `jmdict.ts`'s targeted approach). `validateKanjiEntry`
+  requires the char to exist and the stored reading + meaning to be attested.
+- Derivation: `reading` = first kun-yomi with okurigana/hyphens stripped
+  (`normalizeReading`: `た.べる → た`, `-び → び`), falling back to first on-yomi;
+  `en` = KANJIDIC2's first English gloss. Both dictionary-sourced, never invented.
+- **245 entries, 0 residuals, 0 duplicates** (N5/N4 lists are disjoint, all jōyō,
+  all in KANJIDIC2). id = `k:<kanji>`; faces `[meaning, reading]` (both deterministic).
+
+**Grammar** (`generate-grammar.ts` + `grammar-list.ts`):
+- Membership **and content**: the blessed `JLPT Grammar.xlsx - full list.csv`,
+  filtered to N5 (80) + N4 (131) = **211 entries**. There is **no dictionary to
+  gate grammar against** (JMdict/KANJIDIC2 are words/kanji) — per the MANIFEST the
+  list is the sole authority, and the only correctness guard is deterministic
+  gradability. `readGrammarList` **throws on a malformed N5/N4 row** (too few
+  columns, non-numeric `#`, empty point/meaning) so the build fails rather than
+  emitting a broken entry.
+- id = `g:<level>-<num>` (the source `#` is unique + contiguous per level), which
+  keeps the 6 grammar points that share a JP form but differ in meaning (N5 でも
+  "but" vs N4 でも "…or something") as distinct curriculum rather than collapsing them.
+- faces `[recall]` only — JP→en MCQ. **No cloze faces:** the source carries no
+  sentences and authoring them would break determinism / invent curriculum. This
+  is a visible product change (grammar cards lose the prototype's cloze practice);
+  flag at merge.
+
+**`SPINE_VERSION` bumped 3 → 4** (kanji + grammar ids and faces all changed, so
+persisted FSRS card state must invalidate). Coverage tests
+(`generate-kanji.test.ts` 8, `generate-grammar.test.ts` 6) are folded into
+`npm test`: every kanji passes `validateKanjiEntry`; every grammar entry is a
+non-empty recall MCQ; ids unique + correctly shaped; the committed `.md` matches
+the generator byte-for-byte and parses under its file-type schema. A separate
+smoke run confirmed all 701 kanji/grammar faces render valid MCQs (enough
+distinct distractors — the kanji `reading`-face collision risk is not realized).
 
 ---
 
@@ -252,7 +298,7 @@ classes; the `.md` flavor note was updated).
   Dungeon DAG section above.
 - ✅ Every dungeon **passes the bands** for all 3 classes at its intended level.
 
-### C. Content (spine) — 🟡 IN PROGRESS
+### C. Content (spine) — ✅ DONE (2026-06-01)
 - **C1 done** (commit `eee86ea`): JMdict correctness gate + blessed-list reader,
   unit-tested (`jmdict.ts`, `blessed.ts`, `jmdict.test.ts`).
 - **C2 done** (this slice): `vocab.md` regenerated from the blessed N5/N4 lists →
@@ -263,9 +309,14 @@ classes; the `.md` flavor note was updated).
 - **14 residual rows accepted as omissions** (david, 2026-06-01): the vocab
   "N5/N4 100% present" checkbox is met modulo this documented, test-locked
   residue (`vocab-residuals.ts`; see the C2 table). **Vocab DoD C is complete.**
-- **Still open for DoD C:** the **kanji/grammar follow-up** (the existing
-  `kanji.md`/`grammar.md` are the hand-authored prototype; regenerating/
-  validating them against the blessed lists is not yet done).
+- **C3 done** (this slice): `kanji.md` (245, KANJIDIC2-gated) + `grammar.md`
+  (211, list-as-authority + deterministic-MCQ guard) regenerated from the blessed
+  lists, replacing the hand-authored prototype. `generate-kanji.ts` + `kanjidic.ts`
+  + `kanji-membership.ts` + `generate-grammar.ts` + `grammar-list.ts`, each with a
+  byte-for-byte sync test. `SPINE_VERSION` 3 → 4. See the "C3" section above.
+- **All three spine categories now satisfy DoD C.** Net result: vocab 1361 +
+  kanji 245 + grammar 211, all level-tagged, all dictionary-corroborated (vocab/
+  kanji) or list-authoritative + deterministically gradable (grammar).
 
 ### D. Gates — build/lint/test green every iteration; sim red by design until B is met.
 
