@@ -11,9 +11,9 @@ as a tiered DAG and **all 8 pass the bands** for all 3 classes. The sim gate is
 fully green. **DoD C (spine) is now IN PROGRESS:** slices **C1** (correctness
 gate + blessed-list reader) and **C2** (vocab spine regenerated from the blessed
 N5/N4 lists, kana readings, gated) are **done and green** (2026-06-01). The
-four-part gate is green at **290 tests** + sim 9/9. **Remaining for DoD C:** a
-**human decision on 14 residual blessed rows** that JMdict-common cannot
-corroborate (the "100%-present" checkbox is human-owned — see C2 below) and the
+four-part gate is green at **290 tests** + sim 9/9. The 14 blessed rows
+JMdict-common cannot corroborate are **accepted as documented omissions**
+(david, 2026-06-01), so **vocab DoD C is complete**. **Remaining for DoD C:** the
 **kanji/grammar follow-up**.
 
 ## DoD C — spine (in progress)
@@ -78,13 +78,16 @@ prototype to **1361 kana entries** (N5 707 + N4 654). Run it with
   `vocab.md` matches `renderVocabMarkdown(generateVocab())` byte-for-byte (so it
   can't drift or be hand-edited).
 
-**⚠️ Escalation — 14 residual rows (human decision, david).** These blessed rows
-do not resolve against JMdict-common after the full cascade. Per the contract
-("100%-present is human-owned — a stubborn residue is an escalation, not a silent
-drop"), they are captured in `src/content/spine/vocab-residuals.ts` and the
-coverage test asserts the generator's residual set **equals that allowlist
-exactly** (no silent growth). They are NOT in the spine, so the DoD "N5/N4 100%
-present" checkbox is **not yet truly met** — it's your call how to close it:
+**✅ Resolved — 14 residual rows accepted as omissions (david, 2026-06-01).**
+These blessed rows do not resolve against JMdict-common after the full cascade.
+Per the contract ("100%-present is human-owned — a stubborn residue is an
+escalation, not a silent drop"), they are captured in
+`src/content/spine/vocab-residuals.ts` and the coverage test asserts the
+generator's residual set **equals that allowlist exactly** (no silent growth).
+**The human decision is to accept the omissions:** the N5/N4 lists are "present"
+modulo this documented residue, and the DoD vocab "100%-present" checkbox is
+**met on that basis**. The table below records what was dropped and why; the
+locked test re-surfaces any future drift (a 15th residual) for review.
 
 | Category | Rows | Suggested resolution |
 |---|---|---|
@@ -257,12 +260,12 @@ classes; the `.md` flavor note was updated).
   byte-for-byte sync test. `generate-vocab.ts` + `vocab-residuals.ts` +
   `generate-vocab.test.ts`; `primaryPos` added to the JMdict index;
   `SPINE_VERSION` 2 → 3. See the "C2" section above.
-- **Still open for DoD C (human + follow-up):**
-  - ⚠️ **14 residual rows** block a literal "N5/N4 100% present" — escalated via
-    `vocab-residuals.ts` (human decision; see the C2 table).
-  - **kanji/grammar follow-up** (the existing `kanji.md`/`grammar.md` are the
-    hand-authored prototype; regenerating/validating them against the blessed
-    lists is not yet done).
+- **14 residual rows accepted as omissions** (david, 2026-06-01): the vocab
+  "N5/N4 100% present" checkbox is met modulo this documented, test-locked
+  residue (`vocab-residuals.ts`; see the C2 table). **Vocab DoD C is complete.**
+- **Still open for DoD C:** the **kanji/grammar follow-up** (the existing
+  `kanji.md`/`grammar.md` are the hand-authored prototype; regenerating/
+  validating them against the blessed lists is not yet done).
 
 ### D. Gates — build/lint/test green every iteration; sim red by design until B is met.
 
