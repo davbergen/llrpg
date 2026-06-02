@@ -5,9 +5,11 @@ import {
   getDungeon,
   initialDungeonState,
   isDungeonUnlocked,
+  resetActiveDungeon,
+  sanitizeDungeonState,
   unlockedDungeons,
 } from './dungeon';
-import type { DungeonProgress } from '../types';
+import type { DungeonProgress, DungeonState } from '../types';
 
 describe('dungeons registry', () => {
   it('loads three dungeons in order', () => {
@@ -61,5 +63,85 @@ describe('linear gating', () => {
 
   it('getDungeon throws on unknown id', () => {
     expect(() => getDungeon('does-not-exist')).toThrow();
+  });
+});
+
+describe('resetActiveDungeon (run-reset on death)', () => {
+  it('resets the active dungeon to fresh progress', () => {
+    const d1 = DUNGEONS[0];
+    const state: DungeonState = {
+      activeDungeonId: d1.meta.id,
+      progress: {
+        [d1.meta.id]: {
+          currentMonsterIndex: 4,
+          currentMonsterHp: 12,
+          lastActionAt: 9999,
+          cleared: false,
+        },
+      },
+      pendingDamageMultiplier: 1.6,
+    };
+    const next = resetActiveDungeon(state);
+    expect(next.progress[d1.meta.id]).toEqual(freshProgress(d1.monsters));
+    expect(next.pendingDamageMultiplier).toBeUndefined();
+  });
+
+  it('leaves other dungeons untouched', () => {
+    const [d1, d2] = DUNGEONS;
+    const d2Progress: DungeonProgress = {
+      ...freshProgress(d2.monsters),
+      cleared: true,
+    };
+    const state: DungeonState = {
+      activeDungeonId: d1.meta.id,
+      progress: {
+        [d1.meta.id]: { currentMonsterIndex: 3, currentMonsterHp: 5, lastActionAt: 1, cleared: false },
+        [d2.meta.id]: d2Progress,
+      },
+    };
+    const next = resetActiveDungeon(state);
+    expect(next.progress[d2.meta.id]).toEqual(d2Progress);
+  });
+});
+
+describe('sanitizeDungeonState (stale-id repair)', () => {
+  it('falls back to the first dungeon when the active id is unknown', () => {
+    const [d1] = DUNGEONS;
+    const d1Cleared: DungeonProgress = { ...freshProgress(d1.monsters), cleared: true };
+    const stale: DungeonState = {
+      // "garden-of-particles" was a former id for Dungeon 2.
+      activeDungeonId: 'garden-of-particles',
+      progress: {
+        [d1.meta.id]: d1Cleared,
+        'garden-of-particles': {
+          currentMonsterIndex: 1,
+          currentMonsterHp: 70,
+          lastActionAt: 123,
+          cleared: false,
+        },
+      },
+    };
+    const next = sanitizeDungeonState(stale);
+    expect(next.activeDungeonId).toBe(d1.meta.id);
+    // Unknown progress key dropped; known one preserved.
+    expect(next.progress['garden-of-particles']).toBeUndefined();
+    expect(next.progress[d1.meta.id]).toEqual(d1Cleared);
+  });
+
+  it('seeds fresh progress for the active dungeon if missing', () => {
+    const [d1, d2] = DUNGEONS;
+    const next = sanitizeDungeonState({ activeDungeonId: d2.meta.id, progress: {} });
+    expect(next.activeDungeonId).toBe(d2.meta.id);
+    expect(next.progress[d2.meta.id]).toEqual(freshProgress(d2.monsters));
+    expect(next.progress[d1.meta.id]).toBeUndefined();
+  });
+
+  it('leaves a valid state intact', () => {
+    const valid = initialDungeonState();
+    expect(sanitizeDungeonState(valid)).toEqual(valid);
+  });
+
+  it('returns a fresh initial state for undefined input', () => {
+    expect(sanitizeDungeonState(undefined)).toEqual(initialDungeonState());
   });
 });

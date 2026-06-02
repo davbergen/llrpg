@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadLocalSync, localOnlyRepo, authedRepo, WriteThroughRepo, type Repo } from './repos';
-import { getActiveMonsters } from './game/dungeon';
-import { applyAbility, clampPlayerHp } from './game/combat-engine';
+import { getActiveMonsters, resetActiveDungeon, sanitizeDungeonState } from './game/dungeon';
+import { applyAbility } from './game/combat-engine';
+import { resolveCombat } from './game/combat-resolution';
 import { findAbilityById } from './game/class-abilities';
 import { emptySecondaryResources, canAffordSecondary } from './game/secondary-resources';
 import { resolveMana, spendMana, canAffordAbility, applyFirstLessonBonus, initialManaState } from './game/mana';
@@ -32,6 +33,7 @@ import Dungeon from './screens/Dungeon';
 import Lesson from './screens/Lesson';
 import Loot, { type LootReward } from './screens/Loot';
 import Profile from './screens/Profile';
+import Settings from './screens/Settings';
 import ConsentGate from './screens/ConsentGate';
 import Shop from './screens/Shop';
 import SignIn from './screens/SignIn';
@@ -43,6 +45,15 @@ import { isNative } from './platform';
 import { startBgm } from './bgm';
 
 const XP_PER_CORRECT_ANSWER = 5;
+
+/**
+ * Repairs a loaded save so a stale/renamed dungeon id can't crash boot. Applied
+ * to every game state that comes from persistence (local cache + remote hydrate).
+ */
+function withValidDungeon(gs: GameState | undefined | null): GameState {
+  const base = gs ?? INITIAL_STATE;
+  return { ...base, dungeonState: sanitizeDungeonState(base.dungeonState) };
+}
 import {
   TweaksPanel,
   TweakSection,
@@ -59,7 +70,7 @@ function App() {
   const hydratedForUserRef = useRef<string | null>(null);
   const [screen, setScreen] = useState<ScreenName>(initialSave?.hero ? 'home' : 'onboarding');
   const [hero, setHero] = useState<Hero | null>(initialSave?.hero ?? null);
-  const [gameState, setGameState] = useState<GameState>(initialSave?.gameState ?? INITIAL_STATE);
+  const [gameState, setGameState] = useState<GameState>(() => withValidDungeon(initialSave?.gameState));
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [transition, setTransition] = useState(false);
   const [showTweaks, setShowTweaks] = useState(false);
@@ -67,6 +78,7 @@ function App() {
   const [pendingLoot, setPendingLoot] = useState<LootReward | null>(null);
   const [pendingSnapshot, setPendingSnapshot] = useState<RetrySnapshot | null>(null);
   const [retryPrompt, setRetryPrompt] = useState<{ snapshot: RetrySnapshot; abilityId: string } | null>(null);
+  const [defeat, setDefeat] = useState<{ monsterName: string } | null>(null);
   const [pendingAnimation, setPendingAnimation] = useState<{
     abilityId: string;
     damage: number;
@@ -109,7 +121,7 @@ function App() {
           if (remote) {
             // Server wins on reconnect — hydrate local state from remote.
             setHero(remote.hero);
-            setGameState(remote.gameState);
+            setGameState(withValidDungeon(remote.gameState));
             setPlacementDone(remote.placementDone ?? !!remote.hero);
             setTelemetryConsent(remote.telemetryConsent ?? null);
           } else {
@@ -329,17 +341,27 @@ function App() {
       totalXpDelta,
     );
 
-    const nextMaxHp = gameState.maxHp + progress.maxHpDelta;
-    const healed = clampPlayerHp(gameState.hp - result.counterDamage) + result.selfHeal;
-    const baseHp = Math.max(1, healed);
-    const nextHp = progress.leveledUp ? nextMaxHp : Math.min(baseHp, nextMaxHp);
+    const resolution = resolveCombat({
+      currentHp: gameState.hp,
+      maxHp: gameState.maxHp,
+      counterDamage: result.counterDamage,
+      selfHeal: result.selfHeal,
+      levelsGained: progress.levelsGained,
+    });
+    const died = resolution.died;
+    const nextMaxHp = resolution.maxHp;
+    // On death the run fails: full-heal for the next attempt, reset the active
+    // dungeon's monsters, but keep earned XP/loot/gold/gems. Otherwise apply the
+    // resolved HP from this turn.
+    const nextHp = died ? nextMaxHp : resolution.hp;
 
-    const resourcesAfterRun = result.dungeonCleared
-      ? emptySecondaryResources()
-      : result.nextSecondaryResources;
-    const dungeonAfterRun = result.dungeonCleared
-      ? { ...result.nextDungeonState, pendingDamageMultiplier: undefined }
-      : result.nextDungeonState;
+    const resourcesAfterRun =
+      result.dungeonCleared || died ? emptySecondaryResources() : result.nextSecondaryResources;
+    const dungeonAfterRun = died
+      ? resetActiveDungeon(result.nextDungeonState)
+      : result.dungeonCleared
+        ? { ...result.nextDungeonState, pendingDamageMultiplier: undefined }
+        : result.nextDungeonState;
 
     const now = Date.now();
     const tickResult = tickStreak(streakState, now);
@@ -381,6 +403,17 @@ function App() {
         };
       });
       setPendingAbility(null);
+
+      // Death ends the run: report it, then boot to town. No retry/loot — the
+      // run is over (rewards already kept), and the active dungeon was reset.
+      if (died) {
+        setPendingSnapshot(null);
+        setRetryPrompt(null);
+        setPendingLoot(null);
+        setDefeat({ monsterName: monster?.name ?? 'the enemy' });
+        navigate('home');
+        return;
+      }
 
       // Offer retry on a failed session before navigating away.
       // Skip if the session somehow killed a monster — would require reverting loot/xp.
@@ -428,7 +461,8 @@ function App() {
       navigate('dungeon');
     } else {
       performCommit();
-      if (!result.monsterDefeated) navigate('dungeon');
+      // performCommit already routes to home on death; don't override it here.
+      if (!result.monsterDefeated && !died) navigate('dungeon');
     }
   };
 
@@ -672,6 +706,7 @@ function App() {
                   />
                 )}
                 {screen === 'profile' && <Profile {...screenProps} />}
+                {screen === 'settings' && <Settings {...screenProps} />}
                 {screen === 'shop' && <Shop {...screenProps} userId={shopUserId} />}
               </div>
               <NavBar screen={screen} setScreen={navigate} />
@@ -683,6 +718,9 @@ function App() {
               onAccept={handleRetryAccept}
               onDecline={handleRetryDecline}
             />
+          )}
+          {defeat && (
+            <DefeatModal monsterName={defeat.monsterName} onContinue={() => setDefeat(null)} />
           )}
         </div>
 
@@ -917,6 +955,49 @@ function RetryModal({ gemBalance, onAccept, onDecline }: RetryModalProps) {
             CONTINUE
           </PixelButton>
         </div>
+      </PixelPanel>
+    </div>
+  );
+}
+
+interface DefeatModalProps {
+  monsterName: string;
+  onContinue: () => void;
+}
+
+function DefeatModal({ monsterName, onContinue }: DefeatModalProps) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        zIndex: 100,
+      }}
+    >
+      <PixelPanel style={{ width: '100%', maxWidth: 320, borderColor: RPG.red }}>
+        <PixelHeader size={12} color={RPG.red}>
+          YOU FELL IN BATTLE
+        </PixelHeader>
+        <div
+          style={{
+            fontFamily: "'Courier Prime', monospace",
+            fontSize: 12,
+            color: RPG.text,
+            lineHeight: 1.5,
+            margin: '4px 0 14px',
+          }}
+        >
+          {monsterName} struck you down. You retreat to town — the dungeon resets, but the XP, loot,
+          and gold you earned are yours to keep. Return when you're ready, restored to full HP.
+        </div>
+        <PixelButton onClick={onContinue} sound="confirm" style={{ width: '100%' }}>
+          ↩ RETREAT TO TOWN
+        </PixelButton>
       </PixelPanel>
     </div>
   );

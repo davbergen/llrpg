@@ -5,7 +5,15 @@ import type { StreakState } from './game/streak';
 import type { GemLedger } from './game/gem-ledger';
 
 export type ClassType = 'mage' | 'warrior' | 'priest';
-export type ScreenName = 'onboarding' | 'home' | 'dungeon' | 'lesson' | 'loot' | 'profile' | 'shop';
+export type ScreenName =
+  | 'onboarding'
+  | 'home'
+  | 'dungeon'
+  | 'lesson'
+  | 'loot'
+  | 'profile'
+  | 'shop'
+  | 'settings';
 
 export type EquipmentSlot = 'head' | 'chest' | 'legs';
 

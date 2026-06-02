@@ -172,7 +172,3 @@ export function applyAbility(input: ApplyAbilityInput): ApplyAbilityResult {
     xpGained,
   };
 }
-
-export function clampPlayerHp(hp: number): number {
-  return Math.max(1, hp);
-}

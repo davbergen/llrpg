@@ -1118,6 +1118,16 @@ const Dungeon: React.FC<DungeonProps> = ({
                       : ''}
                   </div>
                 </div>
+                <div
+                  style={{
+                    fontFamily: "'Courier Prime', monospace",
+                    fontSize: 11,
+                    color: RPG.textDim,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {selectedAbility.description}
+                </div>
                 <button
                   onClick={() => selectedAffordable && onAbilityChosen?.(selectedAbility.id)}
                   disabled={!selectedAffordable}

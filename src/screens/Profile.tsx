@@ -12,19 +12,11 @@ import {
 } from '../components/rpg';
 import { calcStats, RARITY_DAMAGE_BONUS } from '../game/stats';
 import { sellValue } from '../game/loot-tables-v2';
-import AccountSection from './AccountSection';
-import { isBgmMuted, setBgmMuted } from '../bgm';
 
 const classColors: Record<ClassType, string> = {
   mage: '#9b5de5',
   warrior: '#c44b4b',
   priest: '#f4e060',
-};
-
-const classAbilities: Record<ClassType, string[]> = {
-  mage: ['Arcane Grammar', 'Spell Weave', 'Kanji Mastery'],
-  warrior: ['Iron Vocab', 'Battle Cry', 'Endurance'],
-  priest: ['Sacred Verse', 'Faith Heal', 'Divine Smite'],
 };
 
 const rarityColors: Record<ItemRarity, string> = {
@@ -46,18 +38,10 @@ const SLOT_ICONS: Record<EquipmentSlot, string> = {
   legs: '👢',
 };
 
-const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState }) => {
+const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState, setScreen }) => {
   const heroColor = classColors[hero.classType] ?? RPG.gold;
-  const abilities = classAbilities[hero.classType] ?? classAbilities.mage;
   const { damageBonus } = calcStats(hero, hero.equipment, gameState.level);
   const [sellTarget, setSellTarget] = useState<{ index: number; item: InventoryItem } | null>(null);
-  const [musicOn, setMusicOn] = useState(!isBgmMuted());
-
-  const toggleMusic = () => {
-    const next = !musicOn;
-    setMusicOn(next);
-    setBgmMuted(!next);
-  };
 
   const equipItem = (item: InventoryItem, index: number) => {
     if (!item.slot) return;
@@ -109,8 +93,28 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
           display: 'flex',
           gap: 14,
           alignItems: 'flex-end',
+          position: 'relative',
         }}
       >
+        <button
+          onClick={() => setScreen('settings')}
+          aria-label="Settings"
+          style={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            width: 34,
+            height: 34,
+            border: `2px solid ${RPG.border}`,
+            background: RPG.panelDark,
+            fontSize: 16,
+            lineHeight: '30px',
+            cursor: 'pointer',
+            color: RPG.text,
+          }}
+        >
+          ⚙
+        </button>
         <div style={{ position: 'relative' }}>
           <div
             style={{
@@ -179,46 +183,6 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
               </span>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Class abilities */}
-      <div style={{ padding: '12px 16px', borderBottom: `2px solid ${RPG.border}22` }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {abilities.map((ab, i) => (
-            <div
-              key={i}
-              style={{
-                flex: 1,
-                padding: '8px 6px',
-                textAlign: 'center',
-                background: RPG.panelDark,
-                border: `2px solid ${i === 0 ? heroColor : RPG.border}`,
-                boxShadow: i === 0 ? `0 0 10px ${heroColor}44` : 'none',
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "'Press Start 2P'",
-                  fontSize: 6,
-                  color: i === 0 ? heroColor : RPG.textDim,
-                  lineHeight: 1.5,
-                }}
-              >
-                {ab}
-              </div>
-              <div
-                style={{
-                  fontFamily: "'Press Start 2P'",
-                  fontSize: 6,
-                  color: i === 0 ? RPG.gold : RPG.textDark,
-                  marginTop: 3,
-                }}
-              >
-                {i === 0 ? 'ACTIVE' : `LV${(i + 1) * 5}`}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -433,16 +397,6 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
           </div>
         )}
       </div>
-
-      {/* Settings */}
-      <div style={{ padding: '14px 16px', borderTop: `3px solid ${RPG.border}` }}>
-        <PixelHeader size={9}>SETTINGS</PixelHeader>
-        <PixelButton onClick={toggleMusic} variant={musicOn ? 'green' : 'grey'} small>
-          {musicOn ? '🔊 MUSIC: ON' : '🔇 MUSIC: OFF'}
-        </PixelButton>
-      </div>
-
-      <AccountSection />
 
       {sellTarget && (
         <div

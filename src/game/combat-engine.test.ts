@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyAbility, clampPlayerHp, KILL_XP_BOSS, KILL_XP_REGULAR } from './combat-engine';
+import { applyAbility, KILL_XP_BOSS, KILL_XP_REGULAR } from './combat-engine';
 import { DUNGEONS, initialDungeonState } from './dungeon';
 import { findAbilityById } from './class-abilities';
 import { emptySecondaryResources } from './secondary-resources';
@@ -368,11 +368,4 @@ describe('combat-engine', () => {
     });
   });
 
-  describe('clampPlayerHp', () => {
-    it('clamps to a minimum of 1', () => {
-      expect(clampPlayerHp(0)).toBe(1);
-      expect(clampPlayerHp(-50)).toBe(1);
-      expect(clampPlayerHp(20)).toBe(20);
-    });
-  });
 });
