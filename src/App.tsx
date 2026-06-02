@@ -2,9 +2,8 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadLocalSync, localOnlyRepo, authedRepo, WriteThroughRepo, type Repo } from './repos';
-import { getActiveMonsters, resetActiveDungeon, sanitizeDungeonState } from './game/dungeon';
-import { applyAbility } from './game/combat-engine';
-import { resolveCombat } from './game/combat-resolution';
+import { getActiveMonsters, sanitizeDungeonState } from './game/dungeon';
+import { applyAbility, resolvePlayerHp } from './game/combat-engine';
 import { findAbilityById } from './game/class-abilities';
 import { emptySecondaryResources, canAffordSecondary } from './game/secondary-resources';
 import { resolveMana, spendMana, canAffordAbility, applyFirstLessonBonus, initialManaState } from './game/mana';
@@ -42,6 +41,7 @@ import { getOrCreateGuestId } from './repos/guestId';
 import { STREAK_MILESTONE_GOLD } from './game/streak-milestones';
 import { useScheduledDeletion } from './gdpr/useScheduledDeletion';
 import { isNative } from './platform';
+import { maybeRequestNotificationPermission, scheduleFsrsReminders } from './notifications';
 import { startBgm } from './bgm';
 
 const XP_PER_CORRECT_ANSWER = 5;
@@ -78,7 +78,7 @@ function App() {
   const [pendingLoot, setPendingLoot] = useState<LootReward | null>(null);
   const [pendingSnapshot, setPendingSnapshot] = useState<RetrySnapshot | null>(null);
   const [retryPrompt, setRetryPrompt] = useState<{ snapshot: RetrySnapshot; abilityId: string } | null>(null);
-  const [defeat, setDefeat] = useState<{ monsterName: string } | null>(null);
+  const [showDefeat, setShowDefeat] = useState(false);
   const [pendingAnimation, setPendingAnimation] = useState<{
     abilityId: string;
     damage: number;
@@ -154,6 +154,31 @@ function App() {
         void exchangeDeepLinkCode(url).catch((e) => {
           console.error('OAuth deep-link exchange failed:', e);
         });
+      });
+      if (disposed) {
+        void handle.remove();
+      } else {
+        remove = () => void handle.remove();
+      }
+    })();
+    return () => {
+      disposed = true;
+      remove?.();
+    };
+  }, []);
+
+  // Native only: when the app is backgrounded, recompute the next horizon of FSRS
+  // review reminders and re-arm local notifications. Scheduling at background time
+  // means the queue reflects the freshest card state and costs nothing while the
+  // user is active. No-ops on web and when notification permission was never granted.
+  useEffect(() => {
+    if (!isNative()) return;
+    let remove: (() => void) | undefined;
+    let disposed = false;
+    void (async () => {
+      const { App: CapApp } = await import('@capacitor/app');
+      const handle = await CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) void scheduleFsrsReminders();
       });
       if (disposed) {
         void handle.remove();
@@ -298,6 +323,9 @@ function App() {
     cardSnapshot: Array<[string, import('./game/fsrs-scheduler').CardState | null]>;
   }) => {
     if (!pendingAbility) return;
+    // First completed review session is the moment to ask for notification
+    // permission (native only, once). Fire-and-forget; it never blocks the flow.
+    void maybeRequestNotificationPermission();
     const snapshotForRetry: RetrySnapshot | null = pendingSnapshot
       ? { ...pendingSnapshot, cards: cardSnapshot }
       : null;
@@ -341,26 +369,39 @@ function App() {
       totalXpDelta,
     );
 
-    const resolution = resolveCombat({
-      currentHp: gameState.hp,
-      maxHp: gameState.maxHp,
+    const nextMaxHp = gameState.maxHp + progress.maxHpDelta;
+    const hpOutcome = resolvePlayerHp({
+      hp: gameState.hp,
       counterDamage: result.counterDamage,
       selfHeal: result.selfHeal,
-      levelsGained: progress.levelsGained,
+      maxHp: nextMaxHp,
     });
-    const died = resolution.died;
-    const nextMaxHp = resolution.maxHp;
-    // On death the run fails: full-heal for the next attempt, reset the active
-    // dungeon's monsters, but keep earned XP/loot/gold/gems. Otherwise apply the
-    // resolved HP from this turn.
-    const nextHp = died ? nextMaxHp : resolution.hp;
+    // Leveling up restores HP, so a level-up earned this turn saves you from an
+    // otherwise-lethal counter.
+    const defeated = !progress.leveledUp && hpOutcome.defeated;
+    // Defeat cost (B1/#79): retreat to the current monster, fully healed.
+    const nextHp = progress.leveledUp || defeated ? nextMaxHp : hpOutcome.hp;
 
+    const activeId = gameState.dungeonState.activeDungeonId;
     const resourcesAfterRun =
-      result.dungeonCleared || died ? emptySecondaryResources() : result.nextSecondaryResources;
-    const dungeonAfterRun = died
-      ? resetActiveDungeon(result.nextDungeonState)
-      : result.dungeonCleared
-        ? { ...result.nextDungeonState, pendingDamageMultiplier: undefined }
+      result.dungeonCleared || defeated
+        ? emptySecondaryResources()
+        : result.nextSecondaryResources;
+    const dungeonAfterRun = result.dungeonCleared
+      ? { ...result.nextDungeonState, pendingDamageMultiplier: undefined }
+      : defeated
+        ? {
+            // Retreat: reset the current monster's HP to full and clear queued buffs.
+            ...result.nextDungeonState,
+            progress: {
+              ...result.nextDungeonState.progress,
+              [activeId]: {
+                ...result.nextDungeonState.progress[activeId],
+                currentMonsterHp: monster?.maxHp ?? result.nextDungeonState.progress[activeId].currentMonsterHp,
+              },
+            },
+            pendingDamageMultiplier: undefined,
+          }
         : result.nextDungeonState;
 
     const now = Date.now();
@@ -404,14 +445,13 @@ function App() {
       });
       setPendingAbility(null);
 
-      // Death ends the run: report it, then boot to town. No retry/loot — the
-      // run is over (rewards already kept), and the active dungeon was reset.
-      if (died) {
+      // Defeat takes priority over a failed-lesson retry: the fight was lost, not
+      // just the lesson. Surface the defeat screen; the player retreats to the
+      // (now full-HP) monster.
+      if (defeated) {
         setPendingSnapshot(null);
-        setRetryPrompt(null);
         setPendingLoot(null);
-        setDefeat({ monsterName: monster?.name ?? 'the enemy' });
-        navigate('home');
+        setShowDefeat(true);
         return;
       }
 
@@ -461,8 +501,8 @@ function App() {
       navigate('dungeon');
     } else {
       performCommit();
-      // performCommit already routes to home on death; don't override it here.
-      if (!result.monsterDefeated && !died) navigate('dungeon');
+      // performCommit surfaces the defeat screen on a lost fight; don't override.
+      if (!result.monsterDefeated && !defeated) navigate('dungeon');
     }
   };
 
@@ -493,6 +533,11 @@ function App() {
 
   const handleRetryDecline = () => {
     setRetryPrompt(null);
+    navigate('dungeon');
+  };
+
+  const handleDefeatContinue = () => {
+    setShowDefeat(false);
     navigate('dungeon');
   };
 
@@ -719,9 +764,7 @@ function App() {
               onDecline={handleRetryDecline}
             />
           )}
-          {defeat && (
-            <DefeatModal monsterName={defeat.monsterName} onContinue={() => setDefeat(null)} />
-          )}
+          {showDefeat && <DefeatModal onContinue={handleDefeatContinue} />}
         </div>
 
         {/* Home indicator — web frame only; native uses the real gesture bar. */}
@@ -961,11 +1004,10 @@ function RetryModal({ gemBalance, onAccept, onDecline }: RetryModalProps) {
 }
 
 interface DefeatModalProps {
-  monsterName: string;
   onContinue: () => void;
 }
 
-function DefeatModal({ monsterName, onContinue }: DefeatModalProps) {
+function DefeatModal({ onContinue }: DefeatModalProps) {
   return (
     <div
       style={{
@@ -979,9 +1021,9 @@ function DefeatModal({ monsterName, onContinue }: DefeatModalProps) {
         zIndex: 100,
       }}
     >
-      <PixelPanel style={{ width: '100%', maxWidth: 320, borderColor: RPG.red }}>
-        <PixelHeader size={12} color={RPG.red}>
-          YOU FELL IN BATTLE
+      <PixelPanel style={{ width: '100%', maxWidth: 320 }}>
+        <PixelHeader size={13} color={RPG.red}>
+          DEFEATED
         </PixelHeader>
         <div
           style={{
@@ -989,14 +1031,14 @@ function DefeatModal({ monsterName, onContinue }: DefeatModalProps) {
             fontSize: 12,
             color: RPG.text,
             lineHeight: 1.5,
-            margin: '4px 0 14px',
+            margin: '12px 0 16px',
           }}
         >
-          {monsterName} struck you down. You retreat to town — the dungeon resets, but the XP, loot,
-          and gold you earned are yours to keep. Return when you're ready, restored to full HP.
+          You fell in battle. You retreat and recover — fully healed, but the monster
+          stands at full strength again. Try once more.
         </div>
-        <PixelButton onClick={onContinue} sound="confirm" style={{ width: '100%' }}>
-          ↩ RETREAT TO TOWN
+        <PixelButton onClick={onContinue} sound="confirm" variant="red" style={{ width: '100%' }}>
+          ↩ RETREAT
         </PixelButton>
       </PixelPanel>
     </div>

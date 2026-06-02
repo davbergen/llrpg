@@ -15,6 +15,10 @@ export interface DungeonMeta {
   name: string;
   sprite: string;
   order: number;
+  /** DAG depth (1-based). Tier-N clears unlock the tier-(N+1) dungeons. */
+  tier: number;
+  /** Hero level the dungeon is balanced for — the level the sim judges bands at. */
+  intendedLevel: number;
   unlocksFrom: string | null;
 }
 
@@ -116,6 +120,8 @@ export function parseDungeon(
     name: str(head.fields.name, 'name', 0),
     sprite: str(head.fields.sprite, 'sprite', 0),
     order: num(head.fields.order, 'order', 0),
+    tier: num(head.fields.tier, 'tier', 0),
+    intendedLevel: num(head.fields.intendedLevel, 'intendedLevel', 0),
     unlocksFrom: head.fields.unlocksFrom ? head.fields.unlocksFrom : null,
   };
 

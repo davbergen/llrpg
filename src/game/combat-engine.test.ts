@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyAbility, KILL_XP_BOSS, KILL_XP_REGULAR } from './combat-engine';
+import { applyAbility, resolvePlayerHp, KILL_XP_BOSS, KILL_XP_REGULAR } from './combat-engine';
 import { DUNGEONS, initialDungeonState } from './dungeon';
 import { findAbilityById } from './class-abilities';
 import { emptySecondaryResources } from './secondary-resources';
@@ -103,9 +103,13 @@ describe('combat-engine', () => {
     });
 
     it('reduces counter by counter_reduction effect', () => {
-      // frostbolt has counter_reduction 0.5
       const targetIndex = 2;
       const monster = D1_MONSTERS[targetIndex];
+      // Derive the expected reduction from the ability itself so the test tracks
+      // balance tuning of frostbolt's counter_reduction fraction.
+      const reduction = mageFrostbolt.effects
+        .filter((e): e is { kind: 'counter_reduction'; fraction: number } => e.kind === 'counter_reduction')
+        .reduce((acc, e) => acc + e.fraction, 0);
       const result = applyAbility({
         dungeonState: stateAt(targetIndex),
         ability: mageFrostbolt,
@@ -113,7 +117,7 @@ describe('combat-engine', () => {
         lessonAccuracy: 1,
         equipmentDamageBonus: 0,
       });
-      expect(result.counterDamage).toBe(Math.round(monster.counterDamage * 0.5));
+      expect(result.counterDamage).toBe(Math.round(monster.counterDamage * (1 - reduction)));
     });
   });
 
@@ -368,4 +372,35 @@ describe('combat-engine', () => {
     });
   });
 
+  describe('resolvePlayerHp', () => {
+    it('subtracts counter damage when survivable', () => {
+      const out = resolvePlayerHp({ hp: 50, counterDamage: 20, selfHeal: 0, maxHp: 100 });
+      expect(out).toEqual({ hp: 30, defeated: false });
+    });
+
+    it('marks defeat when a counter is lethal (HP would reach 0)', () => {
+      const out = resolvePlayerHp({ hp: 20, counterDamage: 20, selfHeal: 0, maxHp: 100 });
+      expect(out).toEqual({ hp: 0, defeated: true });
+    });
+
+    it('marks defeat when a counter exceeds remaining HP', () => {
+      const out = resolvePlayerHp({ hp: 10, counterDamage: 50, selfHeal: 0, maxHp: 100 });
+      expect(out).toEqual({ hp: 0, defeated: true });
+    });
+
+    it('applies self-heal that offsets the counter', () => {
+      const out = resolvePlayerHp({ hp: 10, counterDamage: 20, selfHeal: 30, maxHp: 100 });
+      expect(out).toEqual({ hp: 20, defeated: false });
+    });
+
+    it('lets a big heal rescue from an otherwise-lethal counter', () => {
+      const out = resolvePlayerHp({ hp: 5, counterDamage: 40, selfHeal: 50, maxHp: 100 });
+      expect(out).toEqual({ hp: 15, defeated: false });
+    });
+
+    it('caps HP at maxHp', () => {
+      const out = resolvePlayerHp({ hp: 90, counterDamage: 0, selfHeal: 50, maxHp: 100 });
+      expect(out).toEqual({ hp: 100, defeated: false });
+    });
+  });
 });

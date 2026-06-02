@@ -52,30 +52,6 @@ export function unlockedDungeons(progress: Record<string, DungeonProgress>): typ
 }
 
 /**
- * Run-reset on death: returns a dungeon state whose *active* dungeon's monster
- * progress is reset to the start (reusing `freshProgress`), leaving every other
- * dungeon's progress — and any earned XP/loot/gold, which live outside this
- * state — untouched. The queued damage multiplier is dropped, since the run ends.
- */
-export function resetActiveDungeon(state: DungeonState): DungeonState {
-  const id = state.activeDungeonId;
-  const dungeon = getDungeon(id);
-  return {
-    ...state,
-    progress: {
-      ...state.progress,
-      [id]: freshProgress(dungeon.monsters),
-    },
-    pendingDamageMultiplier: undefined,
-  };
-}
-
-/** Full-heal helper for entering a dungeon / re-entering after a failed run. */
-export function fullHeal(maxHp: number): number {
-  return maxHp;
-}
-
-/**
  * Repairs a persisted dungeon state whose ids may be stale — e.g. a dungeon was
  * renamed between app versions (a save from when Dungeon 2 was "garden-of-particles"
  * loaded against content that now calls it "crypt-of-conjugations"). Drops progress
