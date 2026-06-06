@@ -5,9 +5,10 @@ import {
   getDungeon,
   initialDungeonState,
   isDungeonUnlocked,
+  sanitizeDungeonState,
   unlockedDungeons,
 } from './dungeon';
-import type { DungeonProgress } from '../types';
+import type { DungeonProgress, DungeonState } from '../types';
 
 describe('dungeons registry', () => {
   it('loads eight dungeons in contiguous order', () => {
@@ -92,5 +93,49 @@ describe('DAG gating', () => {
 
   it('getDungeon throws on unknown id', () => {
     expect(() => getDungeon('does-not-exist')).toThrow();
+  });
+});
+
+describe('sanitizeDungeonState (stale-id repair)', () => {
+  it('falls back to the first dungeon when the active id is unknown', () => {
+    const [d1] = DUNGEONS;
+    const d1Cleared: DungeonProgress = { ...freshProgress(d1.monsters), cleared: true };
+    // An id that no longer exists in any content version (a save from a removed
+    // or renamed dungeon). getDungeon would throw on it during boot.
+    const goneId = 'this-dungeon-was-removed';
+    const stale: DungeonState = {
+      activeDungeonId: goneId,
+      progress: {
+        [d1.meta.id]: d1Cleared,
+        [goneId]: {
+          currentMonsterIndex: 1,
+          currentMonsterHp: 70,
+          lastActionAt: 123,
+          cleared: false,
+        },
+      },
+    };
+    const next = sanitizeDungeonState(stale);
+    expect(next.activeDungeonId).toBe(d1.meta.id);
+    // Unknown progress key dropped; known one preserved.
+    expect(next.progress[goneId]).toBeUndefined();
+    expect(next.progress[d1.meta.id]).toEqual(d1Cleared);
+  });
+
+  it('seeds fresh progress for the active dungeon if missing', () => {
+    const [d1, d2] = DUNGEONS;
+    const next = sanitizeDungeonState({ activeDungeonId: d2.meta.id, progress: {} });
+    expect(next.activeDungeonId).toBe(d2.meta.id);
+    expect(next.progress[d2.meta.id]).toEqual(freshProgress(d2.monsters));
+    expect(next.progress[d1.meta.id]).toBeUndefined();
+  });
+
+  it('leaves a valid state intact', () => {
+    const valid = initialDungeonState();
+    expect(sanitizeDungeonState(valid)).toEqual(valid);
+  });
+
+  it('returns a fresh initial state for undefined input', () => {
+    expect(sanitizeDungeonState(undefined)).toEqual(initialDungeonState());
   });
 });

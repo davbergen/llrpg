@@ -428,8 +428,8 @@ interface NavBarProps {
 export function NavBar({ screen, setScreen }: NavBarProps) {
   const tabs: Array<{ id: ScreenName; label: string; icon: string }> = [
     { id: 'home', label: 'HOME', icon: '🏰' },
-    { id: 'lesson', label: 'QUEST', icon: '📖' },
-    { id: 'loot', label: 'LOOT', icon: '⚔' },
+    { id: 'dungeon', label: 'DUNGEON', icon: '⚔' },
+    { id: 'shop', label: 'SHOP', icon: '🛒' },
     { id: 'profile', label: 'HERO', icon: '👤' },
   ];
   return (

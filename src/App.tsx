@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadLocalSync, localOnlyRepo, authedRepo, WriteThroughRepo, type Repo } from './repos';
-import { getActiveMonsters } from './game/dungeon';
+import { getActiveMonsters, sanitizeDungeonState } from './game/dungeon';
 import { applyAbility, resolvePlayerHp } from './game/combat-engine';
 import { findAbilityById } from './game/class-abilities';
 import { emptySecondaryResources, canAffordSecondary } from './game/secondary-resources';
@@ -32,6 +32,7 @@ import Dungeon from './screens/Dungeon';
 import Lesson from './screens/Lesson';
 import Loot, { type LootReward } from './screens/Loot';
 import Profile from './screens/Profile';
+import Settings from './screens/Settings';
 import ConsentGate from './screens/ConsentGate';
 import Shop from './screens/Shop';
 import SignIn from './screens/SignIn';
@@ -44,6 +45,15 @@ import { maybeRequestNotificationPermission, scheduleFsrsReminders } from './not
 import { startBgm } from './bgm';
 
 const XP_PER_CORRECT_ANSWER = 5;
+
+/**
+ * Repairs a loaded save so a stale/renamed dungeon id can't crash boot. Applied
+ * to every game state that comes from persistence (local cache + remote hydrate).
+ */
+function withValidDungeon(gs: GameState | undefined | null): GameState {
+  const base = gs ?? INITIAL_STATE;
+  return { ...base, dungeonState: sanitizeDungeonState(base.dungeonState) };
+}
 import {
   TweaksPanel,
   TweakSection,
@@ -60,7 +70,7 @@ function App() {
   const hydratedForUserRef = useRef<string | null>(null);
   const [screen, setScreen] = useState<ScreenName>(initialSave?.hero ? 'home' : 'onboarding');
   const [hero, setHero] = useState<Hero | null>(initialSave?.hero ?? null);
-  const [gameState, setGameState] = useState<GameState>(initialSave?.gameState ?? INITIAL_STATE);
+  const [gameState, setGameState] = useState<GameState>(() => withValidDungeon(initialSave?.gameState));
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [transition, setTransition] = useState(false);
   const [showTweaks, setShowTweaks] = useState(false);
@@ -111,7 +121,7 @@ function App() {
           if (remote) {
             // Server wins on reconnect — hydrate local state from remote.
             setHero(remote.hero);
-            setGameState(remote.gameState);
+            setGameState(withValidDungeon(remote.gameState));
             setPlacementDone(remote.placementDone ?? !!remote.hero);
             setTelemetryConsent(remote.telemetryConsent ?? null);
           } else {
@@ -491,7 +501,8 @@ function App() {
       navigate('dungeon');
     } else {
       performCommit();
-      if (!result.monsterDefeated) navigate('dungeon');
+      // performCommit surfaces the defeat screen on a lost fight; don't override.
+      if (!result.monsterDefeated && !defeated) navigate('dungeon');
     }
   };
 
@@ -740,6 +751,7 @@ function App() {
                   />
                 )}
                 {screen === 'profile' && <Profile {...screenProps} />}
+                {screen === 'settings' && <Settings {...screenProps} />}
                 {screen === 'shop' && <Shop {...screenProps} userId={shopUserId} />}
               </div>
               <NavBar screen={screen} setScreen={navigate} />

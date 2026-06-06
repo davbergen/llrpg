@@ -18,6 +18,12 @@ export interface ClassAbility {
   baseDamage: number;
   effects: AbilityEffect[];
   /**
+   * Plain-language description of what the ability does, shown in the combat
+   * select-then-confirm panel above "USE ABILITY" so the player can make an
+   * informed choice. Phrased in terms of the real effect.
+   */
+  description: string;
+  /**
    * Lesson question count, derived from mpCost via the slice-15 mapping
    * (1 MP → 1q, 2 MP → 2q, 4 MP → 3q). Stored explicitly so future tuning
    * can override per-ability.
@@ -47,6 +53,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     mpCost: 1,
     baseDamage: 12,
     effects: [],
+    description: 'A quick jolt of arcane energy.',
     lessonQuestions: lessonQuestionsForMp(1),
   },
   {
@@ -57,6 +64,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     mpCost: 2,
     baseDamage: 26,
     effects: [],
+    description: 'Hurls a ball of flame at the enemy.',
     lessonQuestions: lessonQuestionsForMp(2),
   },
   {
@@ -67,6 +75,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     mpCost: 2,
     baseDamage: 30,
     effects: [{ kind: 'counter_reduction', fraction: 0.35 }],
+    description: 'A chilling bolt that also weakens the enemy’s counterattack this turn.',
     lessonQuestions: lessonQuestionsForMp(2),
   },
   {
@@ -77,6 +86,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     mpCost: 3,
     baseDamage: 45,
     effects: [],
+    description: 'A burst of raw arcane force.',
     lessonQuestions: lessonQuestionsForMp(3),
   },
   {
@@ -87,6 +97,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     mpCost: 4,
     baseDamage: 38,
     effects: [],
+    description: 'Calls down a meteor for heavy damage.',
     lessonQuestions: lessonQuestionsForMp(4),
   },
   {
@@ -97,6 +108,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     mpCost: 4,
     baseDamage: 40,
     effects: [],
+    description: 'Lightning that arcs through the enemy.',
     lessonQuestions: lessonQuestionsForMp(4),
   },
   {
@@ -107,6 +119,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     mpCost: 5,
     baseDamage: 100,
     effects: [],
+    description: 'A devastating arcane explosion — your biggest hit.',
     lessonQuestions: lessonQuestionsForMp(5),
   },
 
@@ -120,6 +133,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 12,
     secondaryGain: 2,
     effects: [],
+    description: 'A basic sword strike that builds Rage.',
     lessonQuestions: lessonQuestionsForMp(1),
   },
   {
@@ -131,6 +145,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 26,
     secondaryGain: 4,
     effects: [],
+    description: 'A wide swing that builds Rage.',
     lessonQuestions: lessonQuestionsForMp(2),
   },
   {
@@ -142,6 +157,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 44,
     secondaryGain: 5,
     effects: [],
+    description: 'An all-out blow that builds heavy Rage.',
     lessonQuestions: lessonQuestionsForMp(2),
   },
   {
@@ -153,6 +169,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 0,
     secondaryCost: 4,
     effects: [{ kind: 'counter_reduction', fraction: 0.6 }],
+    description: 'Brace yourself, reducing incoming counter damage by 60% this turn. Spends Rage.',
     lessonQuestions: lessonQuestionsForMp(1),
     soloAdjustmentNote:
       'Originally a taunt that pulls aggro. In solo, becomes a self-buff that reduces incoming counter by 60% this turn.',
@@ -166,6 +183,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 48,
     secondaryCost: 5,
     effects: [],
+    description: 'A heavy shield bash. Spends Rage.',
     lessonQuestions: lessonQuestionsForMp(3),
   },
   {
@@ -177,6 +195,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 0,
     secondaryCost: 8,
     effects: [{ kind: 'damage_buff_next', multiplier: 1.6 }],
+    description: 'Roar to empower your next attack for 1.6× damage. Spends Rage.',
     lessonQuestions: lessonQuestionsForMp(2),
     soloAdjustmentNote:
       'Originally a party-wide damage buff. In solo, full self-buff: 1.6× damage on next attack.',
@@ -190,6 +209,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 130,
     secondaryCost: 10,
     effects: [],
+    description: 'A finishing blow for massive damage. Spends Rage.',
     lessonQuestions: lessonQuestionsForMp(4),
   },
 
@@ -203,6 +223,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 12,
     secondaryGain: 2,
     effects: [],
+    description: 'A holy strike that builds Faith.',
     lessonQuestions: lessonQuestionsForMp(1),
   },
   {
@@ -214,6 +235,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 26,
     secondaryGain: 3,
     effects: [],
+    description: 'A bolt of light that builds Faith.',
     lessonQuestions: lessonQuestionsForMp(2),
   },
   {
@@ -225,6 +247,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 0,
     secondaryCost: 4,
     effects: [{ kind: 'self_heal', amount: 25 }],
+    description: 'Channel light to heal yourself for 25 HP. Spends Faith.',
     lessonQuestions: lessonQuestionsForMp(2),
     soloAdjustmentNote: 'Originally heals an ally. In solo, heals self for 25 HP.',
   },
@@ -237,6 +260,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 48,
     secondaryGain: 4,
     effects: [],
+    description: 'A radiant attack that builds Faith.',
     lessonQuestions: lessonQuestionsForMp(3),
   },
   {
@@ -248,6 +272,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 0,
     secondaryCost: 6,
     effects: [{ kind: 'self_heal', amount: 55 }],
+    description: 'A powerful prayer that heals you for 55 HP. Spends Faith.',
     lessonQuestions: lessonQuestionsForMp(3),
     soloAdjustmentNote: 'Originally heals an ally for a large amount. In solo, heals self for 55 HP.',
   },
@@ -260,6 +285,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 0,
     secondaryCost: 8,
     effects: [{ kind: 'counter_reduction', fraction: 1 }],
+    description: 'A holy barrier that blocks all counter damage this turn. Spends Faith.',
     lessonQuestions: lessonQuestionsForMp(2),
     soloAdjustmentNote:
       'Originally a party shield. Full self-buff in solo: blocks all counter damage this turn.',
@@ -273,6 +299,7 @@ export const CLASS_ABILITIES: ClassAbility[] = [
     baseDamage: 95,
     secondaryCost: 10,
     effects: [{ kind: 'self_heal', amount: 20 }],
+    description: 'Divine wrath that also heals you for 20 HP. Spends Faith.',
     lessonQuestions: lessonQuestionsForMp(4),
   },
 ];

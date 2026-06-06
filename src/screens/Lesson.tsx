@@ -37,6 +37,7 @@ import { VOCAB_SPINE } from '../content/spine';
 import { composeLesson } from '../game/lesson-composer';
 import { applyOutcome, newCardState, type CardKey, type CardState } from '../game/fsrs-scheduler';
 import { cardStore } from '../game/card-store-singleton';
+import { containsJapanese } from '../game/text-script';
 import { playSelect } from '../sfx';
 
 const DEFAULT_QUESTION_COUNT = 5;
@@ -278,6 +279,10 @@ const Lesson: React.FC<LessonProps> = ({
               color = RPG.red;
             }
           }
+          // Japanese (kana/kanji) options render larger in the Japanese body
+          // font — the pixel font has no kana glyphs and is illegible at 11px.
+          // Romaji/English options keep the pixel styling for visual consistency.
+          const isJp = containsJapanese(opt);
           return (
             <button
               key={opt}
@@ -287,8 +292,13 @@ const Lesson: React.FC<LessonProps> = ({
                 ...pixelBorderStyle(borderColor, bg),
                 padding: '14px 18px',
                 cursor: isFeedback ? 'default' : 'pointer',
-                fontFamily: "'Press Start 2P'",
-                fontSize: 11,
+                fontFamily: isJp
+                  ? "'Noto Sans JP', 'Courier Prime', sans-serif"
+                  : "'Press Start 2P'",
+                fontSize: isJp ? 22 : 11,
+                fontWeight: isJp ? 700 : undefined,
+                // Global CSS disables smoothing on `*`; re-enable it for kana/kanji.
+                WebkitFontSmoothing: isJp ? 'antialiased' : 'none',
                 color,
                 textAlign: 'left',
                 border: `3px solid ${borderColor}`,
