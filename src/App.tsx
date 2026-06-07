@@ -3,13 +3,11 @@ import type { ClassType, Hero, ScreenName, GameState, Tweaks } from './types';
 import { INITIAL_STATE, TWEAK_DEFAULTS } from './constants';
 import { loadLocalSync, localOnlyRepo, authedRepo, WriteThroughRepo, type Repo } from './repos';
 import { getActiveMonsters, sanitizeDungeonState } from './game/dungeon';
-import { applyAbility, resolvePlayerHp } from './game/combat-engine';
 import { findAbilityById } from './game/class-abilities';
 import { emptySecondaryResources, canAffordSecondary } from './game/secondary-resources';
-import { resolveMana, spendMana, canAffordAbility, applyFirstLessonBonus, initialManaState } from './game/mana';
+import { resolveMana, canAffordAbility, initialManaState } from './game/mana';
 import { applyConsumable } from './game/consumables';
-import { tickStreak, streakBuff, initialStreakState } from './game/streak';
-import { creditGems, GEMS_PER_BOSS, GEMS_PER_STREAK_MILESTONE, initialGemLedger } from './game/gem-ledger';
+import { initialGemLedger } from './game/gem-ledger';
 import {
   applyRetry,
   canRetry,
@@ -18,9 +16,8 @@ import {
   GEMS_RETRY_COST,
 } from './game/retry';
 import { cardStore as cardStoreSingleton } from './game/card-store-singleton';
-import { addXp } from './game/progression';
+import { resolveTurn } from './game/resolve-turn';
 import { rollBossLoot, rollMonsterGold, rollMonsterLoot } from './game/loot';
-import { calcStats } from './game/stats';
 import { NavBar, RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from './components/rpg';
 import {
   OnboardingWelcome,
@@ -39,7 +36,6 @@ import Shop from './screens/Shop';
 import SignIn from './screens/SignIn';
 import { useAuth, ensureHeroRow, signOut, exchangeDeepLinkCode } from './auth';
 import { getOrCreateGuestId } from './repos/guestId';
-import { STREAK_MILESTONE_GOLD } from './game/streak-milestones';
 import { useScheduledDeletion } from './gdpr/useScheduledDeletion';
 import { isNative } from './platform';
 import { maybeRequestNotificationPermission, scheduleFsrsReminders } from './notifications';
@@ -372,110 +368,28 @@ function App() {
     const activeMonsters = getActiveMonsters(gameState.dungeonState);
     const activeProgress = gameState.dungeonState.progress[gameState.dungeonState.activeDungeonId];
     const monster = activeProgress ? activeMonsters[activeProgress.currentMonsterIndex] : undefined;
-    const streakState = gameState.streakState ?? initialStreakState();
-    const result = applyAbility({
-      dungeonState: gameState.dungeonState,
+
+    // Pure turn computation lives in resolveTurn; this component only applies the
+    // returned slice and handles routing/animation deferral.
+    const turn = resolveTurn({
       ability,
-      secondaryResources: gameState.secondaryResources ?? emptySecondaryResources(),
       lessonAccuracy: accuracy,
-      equipmentDamageBonus: calcStats(hero!, hero!.equipment, gameState.level).damageBonus,
-      streakBuff: streakBuff(streakState.count),
+      gameState,
+      hero: hero!,
+      now: Date.now(),
+      debugMode: tweaks.debugMode,
       rollLoot: monster ? (m) => (m.isBoss ? rollBossLoot() : rollMonsterLoot(m)) : undefined,
       rollGold: monster ? (m) => rollMonsterGold(m) : undefined,
     });
 
-    // XP comes only from monster/boss kills (ADR-0001): the combat engine's
-    // xpGained is the sole source. Answering lesson questions grants no XP — the
-    // "studying is rewarded" intent lives in FSRS scheduling and the streak buff.
-    const totalXpDelta = result.xpGained;
-    const progress = addXp(
-      { xp: gameState.xp, level: gameState.level, maxXp: gameState.maxXp },
-      totalXpDelta,
-    );
-
-    const nextMaxHp = gameState.maxHp + progress.maxHpDelta;
-    const hpOutcome = resolvePlayerHp({
-      hp: gameState.hp,
-      counterDamage: result.counterDamage,
-      selfHeal: result.selfHeal,
-      maxHp: nextMaxHp,
-    });
-    // Leveling up restores HP, so a level-up earned this turn saves you from an
-    // otherwise-lethal counter.
-    const defeated = !progress.leveledUp && hpOutcome.defeated;
-    // Defeat cost (B1/#79): retreat to the current monster, fully healed.
-    const nextHp = progress.leveledUp || defeated ? nextMaxHp : hpOutcome.hp;
-
-    const activeId = gameState.dungeonState.activeDungeonId;
-    const resourcesAfterRun =
-      result.dungeonCleared || defeated
-        ? emptySecondaryResources()
-        : result.nextSecondaryResources;
-    const dungeonAfterRun = result.dungeonCleared
-      ? { ...result.nextDungeonState, pendingDamageMultiplier: undefined }
-      : defeated
-        ? {
-            // Retreat: reset the current monster's HP to full and clear queued buffs.
-            ...result.nextDungeonState,
-            progress: {
-              ...result.nextDungeonState.progress,
-              [activeId]: {
-                ...result.nextDungeonState.progress[activeId],
-                currentMonsterHp: monster?.maxHp ?? result.nextDungeonState.progress[activeId].currentMonsterHp,
-              },
-            },
-            pendingDamageMultiplier: undefined,
-          }
-        : result.nextDungeonState;
-
-    const now = Date.now();
-    const tickResult = tickStreak(streakState, now);
-    let nextLedger = gameState.gems ?? initialGemLedger();
-    if (result.monsterDefeated && monster?.isBoss) {
-      nextLedger = creditGems(nextLedger, GEMS_PER_BOSS, 'boss_kill', now);
-    }
-    let milestoneGold = 0;
-    if (tickResult.milestonesCrossed > 0) {
-      nextLedger = creditGems(
-        nextLedger,
-        GEMS_PER_STREAK_MILESTONE * tickResult.milestonesCrossed,
-        'streak_milestone',
-        now,
-      );
-      milestoneGold = STREAK_MILESTONE_GOLD * tickResult.milestonesCrossed;
-    }
-
     const performCommit = () => {
-      setGameState((prev) => {
-        const baseMana = resolveMana(prev.mana ?? initialManaState(now), now);
-        // Deferred charge (#4): spend the ability's mana now, at commit, not when
-        // the lesson began. Debug mode keeps infinite mana (never charged).
-        const afterSpend = tweaks.debugMode ? baseMana : spendMana(baseMana, ability.mpCost);
-        const manaAfterBonus = afterSpend.firstLessonBonusUsedToday
-          ? afterSpend
-          : applyFirstLessonBonus(afterSpend);
-        return {
-          ...prev,
-          hp: nextHp,
-          maxHp: nextMaxHp,
-          xp: progress.xp,
-          level: progress.level,
-          maxXp: progress.maxXp,
-          gold: prev.gold + result.goldGained + milestoneGold,
-          inventory: [...prev.inventory, ...result.lootDrops],
-          dungeonState: dungeonAfterRun,
-          mana: manaAfterBonus,
-          secondaryResources: resourcesAfterRun,
-          streakState: tickResult.state,
-          gems: nextLedger,
-        };
-      });
+      setGameState((prev) => ({ ...prev, ...turn.nextState }));
       setPendingAbility(null);
 
       // Defeat takes priority over a failed-lesson retry: the fight was lost, not
       // just the lesson. Surface the defeat screen; the player retreats to the
       // (now full-HP) monster.
-      if (defeated) {
+      if (turn.playerDefeated) {
         setPendingSnapshot(null);
         setPendingLoot(null);
         setShowDefeat(true);
@@ -486,8 +400,8 @@ function App() {
       // Skip if the session somehow killed a monster — would require reverting loot/xp.
       if (
         snapshotForRetry &&
-        !result.monsterDefeated &&
-        canRetry({ ledger: nextLedger, alreadyUsed: false, accuracy })
+        !turn.monsterDefeated &&
+        canRetry({ ledger: turn.nextState.gems, alreadyUsed: false, accuracy })
       ) {
         setRetryPrompt({ snapshot: snapshotForRetry, abilityId: ability.id });
         setPendingSnapshot(null);
@@ -495,15 +409,15 @@ function App() {
       }
       setPendingSnapshot(null);
 
-      if (result.monsterDefeated && monster) {
+      if (turn.monsterDefeated && turn.monsterName) {
         setPendingLoot({
-          monsterName: monster.name,
-          xp: totalXpDelta,
-          gold: result.goldGained,
-          items: result.lootDrops,
-          leveledUp: progress.leveledUp,
-          newLevel: progress.level,
-          dungeonCleared: result.dungeonCleared,
+          monsterName: turn.monsterName,
+          xp: turn.xpGained,
+          gold: turn.goldGained,
+          items: turn.loot,
+          leveledUp: turn.leveledUp,
+          newLevel: turn.newLevel,
+          dungeonCleared: turn.dungeonCleared,
         });
         navigate('loot');
       } else {
@@ -512,24 +426,15 @@ function App() {
       }
     };
 
-    const hasShieldEffect = ability.effects.some((e) => e.kind === 'counter_reduction');
-    const wantsAnimation =
-      result.damageDealt > 0 || result.selfHeal > 0 || (ability.baseDamage === 0 && hasShieldEffect);
-    if (wantsAnimation) {
+    if (turn.wantsAnimation) {
       // Defer commit until Dungeon finishes playing the ability animation.
       pendingCommitRef.current = performCommit;
-      setPendingAnimation({
-        abilityId: ability.id,
-        damage: result.damageDealt,
-        heal: result.selfHeal,
-        counterDamage: result.counterDamage,
-        killed: result.monsterDefeated,
-      });
+      setPendingAnimation(turn.animation);
       navigate('dungeon');
     } else {
       performCommit();
       // performCommit surfaces the defeat screen on a lost fight; don't override.
-      if (!result.monsterDefeated && !defeated) navigate('dungeon');
+      if (!turn.monsterDefeated && !turn.playerDefeated) navigate('dungeon');
     }
   };
 
