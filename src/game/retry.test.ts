@@ -96,3 +96,45 @@ describe('revertCardStore', () => {
     expect(store.has(newKey)).toBe(false);
   });
 });
+
+describe('full retry flow against an injected in-memory store', () => {
+  it('reverts both game state and card store with no storage mocking', () => {
+    // The store is injected as a value (the production path now threads the
+    // root-constructed CardStore here), so the whole retry is exercisable
+    // against the in-memory adapter.
+    const store = new InMemoryCardStore();
+    const now = at(9);
+    const touchedKey = 'touched::recall';
+    const freshKey = 'fresh::reverse';
+    const priorTouched = newCardState(now);
+    store.set(touchedKey, priorTouched);
+
+    // Snapshot taken at lesson start (before mana spend / card writes).
+    const snapshot: RetrySnapshot = {
+      hp: 100,
+      mana: initialManaState(now),
+      dungeonState: initialDungeonState(),
+      secondaryResources: emptySecondaryResources(),
+      cards: [
+        [touchedKey, priorTouched],
+        [freshKey, null],
+      ],
+    };
+    const ledger = creditGems(initialGemLedger(), GEMS_RETRY_COST, 'boss_kill', now);
+
+    // Simulate a failed lesson: cards mutated, gems spendable.
+    store.set(touchedKey, applyOutcome(priorTouched, 'wrong', now));
+    store.set(freshKey, applyOutcome(newCardState(now), 'correct', now));
+
+    expect(canRetry({ ledger, alreadyUsed: false, accuracy: 0.2 })).toBe(true);
+
+    // Apply the retry: state revert + card-store revert via the injected store.
+    const reverted = applyRetry(snapshot, ledger, at(10));
+    revertCardStore(snapshot, store);
+
+    expect(reverted.hp).toBe(100);
+    expect(reverted.ledger.balance).toBe(0);
+    expect(store.get(touchedKey)).toEqual(priorTouched);
+    expect(store.has(freshKey)).toBe(false);
+  });
+});

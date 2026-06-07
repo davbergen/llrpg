@@ -35,8 +35,7 @@ function facePromptFontSize(face: SpineFace): number {
 }
 import { VOCAB_SPINE } from '../content/spine';
 import { composeLesson } from '../game/lesson-composer';
-import { applyOutcome, newCardState, type CardKey, type CardState } from '../game/fsrs-scheduler';
-import { cardStore } from '../game/card-store-singleton';
+import { applyOutcome, newCardState, type CardKey, type CardState, type CardStore } from '../game/fsrs-scheduler';
 import { containsJapanese } from '../game/text-script';
 import { playSelect } from '../sfx';
 
@@ -50,6 +49,8 @@ export interface LessonResult {
 }
 
 interface LessonProps extends ScreenProps {
+  /** Injected card store for FSRS read/write — constructed once at the app root. */
+  cardStore: CardStore;
   questionCount?: number;
   onComplete?: (result: LessonResult) => void;
   completeDestination?: ScreenName;
@@ -60,6 +61,7 @@ type Phase = 'question' | 'feedback' | 'complete';
 
 const Lesson: React.FC<LessonProps> = ({
   setScreen,
+  cardStore,
   questionCount = DEFAULT_QUESTION_COUNT,
   onComplete,
   completeDestination = 'home',
