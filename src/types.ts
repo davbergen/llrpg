@@ -1,3 +1,8 @@
+// Shared-types hub for LinguaQuest. Single source of TypeScript types used
+// across screens and the App shell: Hero, GameState, Tweaks, ScreenName,
+// ClassType, and ScreenProps. Game-mechanic types live next to their modules
+// under src/game/ and are re-imported here.
+
 import type { Dispatch, SetStateAction } from 'react';
 import type { ManaState } from './game/mana';
 import type { SecondaryResources } from './game/secondary-resources';
