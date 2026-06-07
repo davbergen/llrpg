@@ -9,7 +9,7 @@
  * still importable but the plugin is never loaded.
  */
 import { isNative } from '../platform';
-import { cardStore } from '../game/card-store-singleton';
+import type { CardStore } from '../game/fsrs-scheduler';
 import { gameStorage } from '../repos/preferencesStorage';
 import { buildNotificationSchedule, type DueCard } from './fsrsScheduler';
 
@@ -22,8 +22,8 @@ const PERMISSION_REQUESTED_KEY = 'llrpg:notif:permission-requested:v1';
  * convention but aren't review reminders — surfacing them would spam a fresh
  * user with a giant "N cards due" notification on day one.
  */
-function gatherDueCards(): DueCard[] {
-  return cardStore
+function gatherDueCards(store: CardStore): DueCard[] {
+  return store
     .entries()
     .filter(([, state]) => state.lastReview != null)
     .map(([cardId, state]) => ({ cardId, dueAt: state.nextDue }));
@@ -56,7 +56,10 @@ export async function maybeRequestNotificationPermission(): Promise<void> {
  * current card store. Silently no-ops if permission was never granted (Android
  * 13+ denial path) so it can be called unconditionally on app background.
  */
-export async function scheduleFsrsReminders(now: number = Date.now()): Promise<void> {
+export async function scheduleFsrsReminders(
+  store: CardStore,
+  now: number = Date.now(),
+): Promise<void> {
   if (!isNative()) return;
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
@@ -71,7 +74,7 @@ export async function scheduleFsrsReminders(now: number = Date.now()): Promise<v
       });
     }
 
-    const payloads = buildNotificationSchedule(gatherDueCards(), { now });
+    const payloads = buildNotificationSchedule(gatherDueCards(store), { now });
     if (payloads.length === 0) return;
 
     await LocalNotifications.schedule({

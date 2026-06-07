@@ -15,7 +15,8 @@ import {
   type RetrySnapshot,
   GEMS_RETRY_COST,
 } from './game/retry';
-import { cardStore as cardStoreSingleton } from './game/card-store-singleton';
+import { PersistentCardStore, type CardStore } from './game/fsrs-scheduler';
+import { getCardStorage } from './repos/cardStorage';
 import { resolveTurn } from './game/resolve-turn';
 import { rollBossLoot, rollMonsterGold, rollMonsterLoot } from './game/loot';
 import { NavBar, RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from './components/rpg';
@@ -62,6 +63,10 @@ import {
 function App() {
   const initialSave = useRef(loadLocalSync()).current;
   const repoRef = useRef<Repo>(localOnlyRepo());
+  // Construct the persistent card store once at the app root and thread the
+  // interface down (lesson read/write, retry-revert, FSRS reminders) so no
+  // module below the root reaches for a singleton.
+  const cardStoreRef = useRef<CardStore>(new PersistentCardStore(getCardStorage()));
   const hydratedForUserRef = useRef<string | null>(null);
   const [screen, setScreen] = useState<ScreenName>(initialSave?.hero ? 'home' : 'onboarding');
   const [hero, setHero] = useState<Hero | null>(initialSave?.hero ?? null);
@@ -173,7 +178,7 @@ function App() {
     void (async () => {
       const { App: CapApp } = await import('@capacitor/app');
       const handle = await CapApp.addListener('appStateChange', ({ isActive }) => {
-        if (!isActive) void scheduleFsrsReminders();
+        if (!isActive) void scheduleFsrsReminders(cardStoreRef.current);
       });
       if (disposed) {
         void handle.remove();
@@ -448,7 +453,7 @@ function App() {
   const handleRetryAccept = () => {
     if (!retryPrompt) return;
     const now = Date.now();
-    revertCardStore(retryPrompt.snapshot, cardStoreSingleton);
+    revertCardStore(retryPrompt.snapshot, cardStoreRef.current);
     const reverted = applyRetry(retryPrompt.snapshot, gameState.gems ?? initialGemLedger(), now);
     setGameState((prev) => ({
       ...prev,
@@ -645,7 +650,10 @@ function App() {
           ) : hero === null && !welcomeAcknowledged && !placementDone ? (
             <OnboardingWelcome onContinue={() => setWelcomeAcknowledged(true)} />
           ) : hero === null && !placementDone ? (
-            <Placement onComplete={() => setPlacementDone(true)} />
+            <Placement
+              cardStore={cardStoreRef.current}
+              onComplete={() => setPlacementDone(true)}
+            />
           ) : hero === null && pendingClass === null ? (
             <OnboardingClass onPick={setPendingClass} />
           ) : hero === null ? (
@@ -670,6 +678,7 @@ function App() {
                 {screen === 'lesson' && (
                   <Lesson
                     {...screenProps}
+                    cardStore={cardStoreRef.current}
                     questionCount={lessonQuestionCount}
                     onComplete={pendingAbility ? handleLessonComplete : undefined}
                     completeDestination={pendingAbility ? 'dungeon' : 'home'}
