@@ -12,6 +12,7 @@ import {
 } from '../components/rpg';
 import { calcStats, RARITY_DAMAGE_BONUS } from '../game/stats';
 import { sellValue } from '../game/loot-tables-v2';
+import { isConsumable } from '../game/consumables';
 
 const classColors: Record<ClassType, string> = {
   mage: '#9b5de5',
@@ -38,7 +39,14 @@ const SLOT_ICONS: Record<EquipmentSlot, string> = {
   legs: '👢',
 };
 
-const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState, setScreen }) => {
+const Profile: React.FC<ScreenProps> = ({
+  hero,
+  setHero,
+  gameState,
+  setGameState,
+  setScreen,
+  consumeItem,
+}) => {
   const heroColor = classColors[hero.classType] ?? RPG.gold;
   const { damageBonus } = calcStats(hero, hero.equipment, gameState.level);
   const [sellTarget, setSellTarget] = useState<{ index: number; item: InventoryItem } | null>(null);
@@ -289,6 +297,7 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {gameState.inventory.map((item, i) => {
               const canEquip = !!item.slot;
+              const canUse = !canEquip && isConsumable(item);
               return (
                 <div
                   key={item.id + i}
@@ -363,6 +372,22 @@ const Profile: React.FC<ScreenProps> = ({ hero, setHero, gameState, setGameState
                         }}
                       >
                         EQUIP
+                      </button>
+                    )}
+                    {canUse && (
+                      <button
+                        onClick={() => consumeItem(i)}
+                        style={{
+                          fontFamily: "'Press Start 2P'",
+                          fontSize: 6,
+                          color: RPG.blue,
+                          padding: '3px 6px',
+                          border: `1px solid ${RPG.blue}`,
+                          background: '#0a1426',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        USE
                       </button>
                     )}
                     <button

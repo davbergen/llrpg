@@ -138,4 +138,6 @@ export interface ScreenProps {
   gameState: GameState;
   setGameState: Dispatch<SetStateAction<GameState>>;
   setScreen: (screen: ScreenName) => void;
+  /** Consume an inventory item by index (Mana Elixir, etc.). */
+  consumeItem: (index: number) => void;
 }

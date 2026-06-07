@@ -160,6 +160,7 @@ const Dungeon: React.FC<DungeonProps> = ({
   hero,
   setGameState,
   setScreen,
+  consumeItem,
   onAbilityChosen,
   debugMode = false,
   pendingAnimation = null,
@@ -322,6 +323,8 @@ const Dungeon: React.FC<DungeonProps> = ({
   const abilities = unlockedAbilities(hero.classType, gameState.level);
   const outOfMana =
     !debugMode && abilities.every((ab) => !canAffordAbility(mana, ab.mpCost));
+  // Mana Elixir shortcut: refill at the moment you actually run dry.
+  const elixirIndex = gameState.inventory.findIndex((it) => it.id === 'mana_potion');
   const secondaryKind = secondaryResourceForClass(hero.classType);
   const palette = heroPalette(hero.classType);
   const heroSprite = tintedHeroBack(hero.classType);
@@ -996,6 +999,25 @@ const Dungeon: React.FC<DungeonProps> = ({
             <div style={{ fontSize: 7, color: RPG.textDim, lineHeight: 1.6 }}>
               RESETS AT 4AM
             </div>
+            {elixirIndex >= 0 && (
+              <button
+                onClick={() => consumeItem(elixirIndex)}
+                style={{
+                  marginTop: 4,
+                  alignSelf: 'center',
+                  background: '#0a1426',
+                  border: `2px solid ${RPG.blue}`,
+                  padding: '8px 12px',
+                  fontFamily: "'Press Start 2P'",
+                  fontSize: 8,
+                  color: RPG.blue,
+                  cursor: 'pointer',
+                  letterSpacing: 1,
+                }}
+              >
+                🧪 USE MANA ELIXIR
+              </button>
+            )}
           </div>
         ) : (
           <>
