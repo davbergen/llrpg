@@ -7,6 +7,7 @@ import { applyAbility, resolvePlayerHp } from './game/combat-engine';
 import { findAbilityById } from './game/class-abilities';
 import { emptySecondaryResources, canAffordSecondary } from './game/secondary-resources';
 import { resolveMana, spendMana, canAffordAbility, applyFirstLessonBonus, initialManaState } from './game/mana';
+import { applyConsumable } from './game/consumables';
 import { tickStreak, streakBuff, initialStreakState } from './game/streak';
 import { creditGems, GEMS_PER_BOSS, GEMS_PER_STREAK_MILESTONE, initialGemLedger } from './game/gem-ledger';
 import {
@@ -43,8 +44,6 @@ import { useScheduledDeletion } from './gdpr/useScheduledDeletion';
 import { isNative } from './platform';
 import { maybeRequestNotificationPermission, scheduleFsrsReminders } from './notifications';
 import { startBgm } from './bgm';
-
-const XP_PER_CORRECT_ANSWER = 5;
 
 /**
  * Repairs a loaded save so a stale/renamed dungeon id can't crash boot. Applied
@@ -307,9 +306,33 @@ function App() {
       secondaryResources: resources,
       cards: [],
     });
-    setGameState((prev) => ({ ...prev, mana: spendMana(resolvedMana, ability.mpCost) }));
+    // Deferred charge (#4): mana is NOT spent here — it is spent at lesson-commit
+    // (see performCommit) so backing out of a lesson costs nothing. We still
+    // persist the resolved mana so a 4am reset applies on entry.
+    setGameState((prev) => ({ ...prev, mana: resolvedMana }));
     setPendingAbility(abilityId);
     navigate('lesson');
+  };
+
+  /**
+   * Consume an inventory item by index (parallel to Profile's equipItem).
+   * Applies the item's effect to the player's resources via the pure
+   * `applyConsumable`, and removes the item only when it was actually consumed.
+   */
+  const consumeItem = (index: number) => {
+    setGameState((prev) => {
+      const item = prev.inventory[index];
+      if (!item) return prev;
+      const now = Date.now();
+      const mana = resolveMana(prev.mana ?? initialManaState(now), now);
+      const { resources, consumed } = applyConsumable(item, { mana });
+      if (!consumed) return prev;
+      return {
+        ...prev,
+        mana: resources.mana,
+        inventory: prev.inventory.filter((_, i) => i !== index),
+      };
+    });
   };
 
   const handleLessonComplete = ({
@@ -336,7 +359,6 @@ function App() {
     abilityId: string,
     {
       accuracy,
-      correctCount,
       snapshotForRetry,
     }: {
       accuracy: number;
@@ -362,8 +384,10 @@ function App() {
       rollGold: monster ? (m) => rollMonsterGold(m) : undefined,
     });
 
-    const lessonXp = correctCount * XP_PER_CORRECT_ANSWER;
-    const totalXpDelta = lessonXp + result.xpGained;
+    // XP comes only from monster/boss kills (ADR-0001): the combat engine's
+    // xpGained is the sole source. Answering lesson questions grants no XP — the
+    // "studying is rewarded" intent lives in FSRS scheduling and the streak buff.
+    const totalXpDelta = result.xpGained;
     const progress = addXp(
       { xp: gameState.xp, level: gameState.level, maxXp: gameState.maxXp },
       totalXpDelta,
@@ -423,10 +447,13 @@ function App() {
 
     const performCommit = () => {
       setGameState((prev) => {
-        const baseMana = prev.mana ?? initialManaState(now);
-        const manaAfterBonus = baseMana.firstLessonBonusUsedToday
-          ? baseMana
-          : applyFirstLessonBonus(baseMana);
+        const baseMana = resolveMana(prev.mana ?? initialManaState(now), now);
+        // Deferred charge (#4): spend the ability's mana now, at commit, not when
+        // the lesson began. Debug mode keeps infinite mana (never charged).
+        const afterSpend = tweaks.debugMode ? baseMana : spendMana(baseMana, ability.mpCost);
+        const manaAfterBonus = afterSpend.firstLessonBonusUsedToday
+          ? afterSpend
+          : applyFirstLessonBonus(afterSpend);
         return {
           ...prev,
           hp: nextHp,
@@ -598,6 +625,7 @@ function App() {
     gameState,
     setGameState,
     setScreen: navigate,
+    consumeItem,
   };
 
   return (
@@ -754,7 +782,9 @@ function App() {
                 {screen === 'settings' && <Settings {...screenProps} />}
                 {screen === 'shop' && <Shop {...screenProps} userId={shopUserId} />}
               </div>
-              <NavBar screen={screen} setScreen={navigate} />
+              {/* Lesson guard (#4): hide the nav bar during a lesson so it
+                  cannot be accidentally exited mid-flow, losing progress. */}
+              {screen !== 'lesson' && <NavBar screen={screen} setScreen={navigate} />}
             </>
           )}
           {retryPrompt && (

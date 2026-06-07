@@ -55,10 +55,20 @@ function reminderTimeFor(dueAt: number, reminderHour: number): number {
   return d.getTime();
 }
 
-function titleFor(count: number, fireAt: number, now: number): string {
-  const noun = count === 1 ? 'card' : 'cards';
+/**
+ * Player-facing reminder copy. Deliberately RPG-themed and free of the internal
+ * "card" term (see CONTEXT.md: players only ever hear "review" / "training").
+ * The due-review count is retained in the body so the reminder still conveys
+ * how much is waiting.
+ */
+function titleFor(): string {
+  return 'Your training awaits';
+}
+
+function bodyFor(count: number, fireAt: number, now: number): string {
+  const noun = count === 1 ? 'review' : 'reviews';
   const when = fireAt <= now ? ' now' : '';
-  return `${count} ${noun} due${when}`;
+  return `${count} ${noun} ready${when} — open LinguaQuest to keep your streak alive.`;
 }
 
 /**
@@ -108,8 +118,8 @@ export function buildNotificationSchedule(
     .slice(0, Math.max(0, maxNotifications))
     .map(([fireAt, cardCount], i) => ({
       id: NOTIFICATION_ID_BASE + i,
-      title: titleFor(cardCount, fireAt, now),
-      body: 'Open LinguaQuest to keep your streak alive.',
+      title: titleFor(),
+      body: bodyFor(cardCount, fireAt, now),
       fireAt,
       cardCount,
     }));

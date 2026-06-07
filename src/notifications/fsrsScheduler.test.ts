@@ -22,10 +22,14 @@ describe('buildNotificationSchedule', () => {
     expect(payload).toMatchObject({
       id: NOTIFICATION_ID_BASE,
       cardCount: 1,
-      title: '1 card due',
+      title: 'Your training awaits',
       fireAt: at(2026, 5, 4, 9), // 9am on the due day, not the 3pm due time
     });
     expect(payload.body).toContain('LinguaQuest');
+    expect(payload.body).toContain('1 review');
+    // The internal "card" term must never leak into player-facing copy.
+    expect(payload.title.toLowerCase()).not.toContain('card');
+    expect(payload.body.toLowerCase()).not.toContain('card');
   });
 
   it('dedupes repeated cardIds, keeping the earliest due time', () => {
@@ -46,8 +50,12 @@ describe('buildNotificationSchedule', () => {
     ];
     const result = buildNotificationSchedule(cards, { now: NOON, reminderHour: 9 });
     expect(result.map((p) => [p.fireAt, p.cardCount, p.title])).toEqual([
-      [at(2026, 5, 2, 9), 1, '1 card due'],
-      [at(2026, 5, 3, 9), 2, '2 cards due'],
+      [at(2026, 5, 2, 9), 1, 'Your training awaits'],
+      [at(2026, 5, 3, 9), 2, 'Your training awaits'],
+    ]);
+    expect(result.map((p) => p.body)).toEqual([
+      '1 review ready — open LinguaQuest to keep your streak alive.',
+      '2 reviews ready — open LinguaQuest to keep your streak alive.',
     ]);
     expect(result.map((p) => p.id)).toEqual([NOTIFICATION_ID_BASE, NOTIFICATION_ID_BASE + 1]);
   });
@@ -73,8 +81,11 @@ describe('buildNotificationSchedule', () => {
     expect(result[0]).toMatchObject({
       fireAt: NOON,
       cardCount: 3,
-      title: '3 cards due now',
+      title: 'Your training awaits',
     });
+    expect(result[0].body).toBe(
+      '3 reviews ready now — open LinguaQuest to keep your streak alive.',
+    );
   });
 
   it('drops cards due beyond the horizon', () => {

@@ -43,7 +43,8 @@ const noResources = emptySecondaryResources();
 describe('combat-engine', () => {
   describe('damage formula', () => {
     it('rounds (baseDamage + bonus) * accuracy', () => {
-      // spark baseDamage=12, bonus 3, accuracy 0.5 → round(15 * 0.5) = 8
+      // (spark baseDamage + bonus 3) * accuracy 0.5, rounded. Derived from the
+      // table so it tracks balance tuning of spark's baseDamage.
       const result = applyAbility({
         dungeonState: stateAt(0),
         ability: mageSpark,
@@ -51,7 +52,7 @@ describe('combat-engine', () => {
         lessonAccuracy: 0.5,
         equipmentDamageBonus: 3,
       });
-      expect(result.damageDealt).toBe(8);
+      expect(result.damageDealt).toBe(Math.round((mageSpark.baseDamage + 3) * 0.5));
     });
 
     it('deals zero damage on zero accuracy', () => {
@@ -73,7 +74,8 @@ describe('combat-engine', () => {
         lessonAccuracy: 5,
         equipmentDamageBonus: 0,
       });
-      expect(result.damageDealt).toBe(26);
+      // Accuracy clamps to 1, bonus 0 ⇒ exactly baseDamage.
+      expect(result.damageDealt).toBe(mageFireball.baseDamage);
     });
   });
 
@@ -248,7 +250,7 @@ describe('combat-engine', () => {
     });
 
     it('consumes pendingDamageMultiplier on the next damaging ability', () => {
-      // spark base 12, multiplier 1.6 → round(12 * 1 * 1.6) = 19
+      // spark base * accuracy 1 * multiplier 1.6, rounded.
       const base = stateAt(0);
       const result = applyAbility({
         dungeonState: { ...base, pendingDamageMultiplier: 1.6 },
@@ -257,7 +259,7 @@ describe('combat-engine', () => {
         lessonAccuracy: 1,
         equipmentDamageBonus: 0,
       });
-      expect(result.damageDealt).toBe(19);
+      expect(result.damageDealt).toBe(Math.round(mageSpark.baseDamage * 1.6));
       expect(result.nextDungeonState.pendingDamageMultiplier).toBeUndefined();
     });
 
@@ -293,12 +295,12 @@ describe('combat-engine', () => {
       };
       const result = applyAbility({
         dungeonState: state,
-        ability: mageSpark, // 12 dmg
+        ability: mageSpark,
         secondaryResources: noResources,
         lessonAccuracy: 1,
         equipmentDamageBonus: 0,
       });
-      const expected = Math.min(boss.maxHp, 100 - 12 + (boss.regenPerTurn ?? 0));
+      const expected = Math.min(boss.maxHp, 100 - mageSpark.baseDamage + (boss.regenPerTurn ?? 0));
       expect(result.nextDungeonState.progress[d2.meta.id].currentMonsterHp).toBe(expected);
     });
 

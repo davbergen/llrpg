@@ -27,8 +27,8 @@ export const COSMETIC_LOOT_POOL: InventoryItem[] = [
     type: 'potion',
     rarity: 'uncommon',
     jp: 'マナ薬',
-    desc: 'Restores 40 MP. Tastes like matcha.',
-    bonus: 'MP +40',
+    desc: 'Restores your Mana to full. Tastes like matcha.',
+    bonus: 'Full Mana',
   },
   {
     id: 'kanji_gem',
