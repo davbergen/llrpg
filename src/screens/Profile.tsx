@@ -298,75 +298,89 @@ const Profile: React.FC<ScreenProps> = ({
             {gameState.inventory.map((item, i) => {
               const canEquip = !!item.slot;
               const canUse = !canEquip && isConsumable(item);
+              const rarityColor = rarityColors[item.rarity] ?? RPG.border;
               return (
                 <div
                   key={item.id + i}
                   style={{
-                    ...pixelBorderStyle(rarityColors[item.rarity] ?? RPG.border, RPG.panelDark),
+                    ...pixelBorderStyle(rarityColor, RPG.panelDark),
                     padding: '10px 12px',
                     display: 'flex',
-                    gap: 12,
-                    alignItems: 'center',
+                    flexDirection: 'column',
+                    gap: 10,
                   }}
                 >
-                  <ItemIcon type={item.type} size={40} />
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        fontFamily: "'Press Start 2P'",
-                        fontSize: 9,
-                        color: RPG.text,
-                        marginBottom: 3,
-                      }}
-                    >
-                      {item.name}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "'Press Start 2P'",
-                        fontSize: 7,
-                        color: RPG.textDim,
-                        marginBottom: 5,
-                      }}
-                    >
-                      {item.jp}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "'Press Start 2P'",
-                        fontSize: 7,
-                        color: RPG.green,
-                        padding: '2px 6px',
-                        background: '#0a2a0a',
-                        border: `1px solid ${RPG.green}`,
-                        display: 'inline-block',
-                      }}
-                    >
-                      {item.bonus}
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <ItemIcon type={item.type} size={40} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          marginBottom: 3,
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontFamily: "'Press Start 2P'",
+                            fontSize: 9,
+                            color: RPG.text,
+                          }}
+                        >
+                          {item.name}
+                        </div>
+                        <div
+                          aria-label={`${item.rarity} rarity`}
+                          style={{
+                            fontFamily: "'Press Start 2P'",
+                            fontSize: 6,
+                            color: rarityColor,
+                            padding: '2px 5px',
+                            border: `1px solid ${rarityColor}`,
+                            background: `${rarityColor}22`,
+                          }}
+                        >
+                          {item.rarity.toUpperCase()}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "'Press Start 2P'",
+                          fontSize: 7,
+                          color: RPG.textDim,
+                          marginBottom: 5,
+                        }}
+                      >
+                        {item.jp}
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "'Press Start 2P'",
+                          fontSize: 7,
+                          color: RPG.green,
+                          padding: '2px 6px',
+                          background: '#0a2a0a',
+                          border: `1px solid ${RPG.green}`,
+                          display: 'inline-block',
+                        }}
+                      >
+                        {item.bonus}
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                    <div
-                      style={{
-                        fontFamily: "'Press Start 2P'",
-                        fontSize: 6,
-                        color: rarityColors[item.rarity] ?? RPG.textDim,
-                        padding: '2px 5px',
-                        border: `1px solid ${rarityColors[item.rarity] ?? RPG.border}`,
-                        background: `${rarityColors[item.rarity] ?? RPG.border}22`,
-                      }}
-                    >
-                      {item.rarity.toUpperCase()}
-                    </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
                     {canEquip && (
                       <button
                         onClick={() => equipItem(item, i)}
                         style={{
+                          flex: 1,
+                          height: 44,
                           fontFamily: "'Press Start 2P'",
-                          fontSize: 6,
+                          fontSize: 9,
                           color: RPG.gold,
-                          padding: '3px 6px',
-                          border: `1px solid ${RPG.gold}`,
+                          border: `2px solid ${RPG.gold}`,
                           background: '#1a1200',
                           cursor: 'pointer',
                         }}
@@ -378,11 +392,12 @@ const Profile: React.FC<ScreenProps> = ({
                       <button
                         onClick={() => consumeItem(i)}
                         style={{
+                          flex: 1,
+                          height: 44,
                           fontFamily: "'Press Start 2P'",
-                          fontSize: 6,
+                          fontSize: 9,
                           color: RPG.blue,
-                          padding: '3px 6px',
-                          border: `1px solid ${RPG.blue}`,
+                          border: `2px solid ${RPG.blue}`,
                           background: '#0a1426',
                           cursor: 'pointer',
                         }}
@@ -393,11 +408,12 @@ const Profile: React.FC<ScreenProps> = ({
                     <button
                       onClick={() => setSellTarget({ index: i, item })}
                       style={{
+                        flex: 1,
+                        height: 44,
                         fontFamily: "'Press Start 2P'",
-                        fontSize: 6,
+                        fontSize: 9,
                         color: RPG.green,
-                        padding: '3px 6px',
-                        border: `1px solid ${RPG.green}`,
+                        border: `2px solid ${RPG.green}`,
                         background: '#0a2a0a',
                         cursor: 'pointer',
                       }}
