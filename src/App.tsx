@@ -17,7 +17,7 @@ import {
 } from './game/retry';
 import { PersistentCardStore, type CardStore } from './game/fsrs-scheduler';
 import { getCardStorage } from './repos/cardStorage';
-import { resolveTurn } from './game/resolve-turn';
+import { resolveTurn, type TurnAnimation } from './game/resolve-turn';
 import { rollBossLoot, rollMonsterGold, rollMonsterLoot } from './game/loot';
 import { NavBar, RPG, PixelPanel, PixelHeader, PixelButton, pixelBorderStyle } from './components/rpg';
 import {
@@ -60,6 +60,12 @@ import {
   TweakButton,
 } from './tweaks';
 
+type TurnPhase =
+  | { kind: 'idle' }
+  | { kind: 'lesson'; abilityId: string; snapshot: RetrySnapshot }
+  | { kind: 'awaitingAnimation'; animation: TurnAnimation; commit: () => void }
+  | { kind: 'retryOffered'; snapshot: RetrySnapshot; abilityId: string };
+
 function App() {
   const initialSave = useRef(loadLocalSync()).current;
   const repoRef = useRef<Repo>(localOnlyRepo());
@@ -74,19 +80,12 @@ function App() {
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   const [transition, setTransition] = useState(false);
   const [showTweaks, setShowTweaks] = useState(false);
-  const [pendingAbility, setPendingAbility] = useState<string | null>(null);
   const [pendingLoot, setPendingLoot] = useState<LootReward | null>(null);
-  const [pendingSnapshot, setPendingSnapshot] = useState<RetrySnapshot | null>(null);
-  const [retryPrompt, setRetryPrompt] = useState<{ snapshot: RetrySnapshot; abilityId: string } | null>(null);
   const [showDefeat, setShowDefeat] = useState(false);
-  const [pendingAnimation, setPendingAnimation] = useState<{
-    abilityId: string;
-    damage: number;
-    heal: number;
-    counterDamage: number;
-    killed: boolean;
-  } | null>(null);
-  const pendingCommitRef = useRef<(() => void) | null>(null);
+  // A combat turn moves through these phases. The phase tag is the named state
+  // machine — illegal transitions are unrepresentable, and the per-phase payload
+  // carries exactly the data that phase owns (no parallel "pendingX" fields).
+  const [turnPhase, setTurnPhase] = useState<TurnPhase>({ kind: 'idle' });
   const [authSkipped, setAuthSkipped] = useState(false);
   const [placementDone, setPlacementDone] = useState<boolean>(
     initialSave?.placementDone ?? !!initialSave?.hero,
@@ -289,7 +288,6 @@ function App() {
     if (tweaks.debugMode) {
       // Debug mode: skip lesson entirely, resolve with a perfect-accuracy result.
       // No mana spend, no retry snapshot.
-      setPendingSnapshot(null);
       resolveAbility(abilityId, {
         accuracy: 1,
         correctCount: ability.lessonQuestions,
@@ -299,19 +297,23 @@ function App() {
       return;
     }
     if (!canAffordAbility(resolvedMana, ability.mpCost)) return;
-    // Snapshot pre-lesson state so a 5-gem retry can fully revert it.
-    setPendingSnapshot({
-      hp: gameState.hp,
-      mana: resolvedMana,
-      dungeonState: gameState.dungeonState,
-      secondaryResources: resources,
-      cards: [],
-    });
     // Deferred charge (#4): mana is NOT spent here — it is spent at lesson-commit
     // (see performCommit) so backing out of a lesson costs nothing. We still
     // persist the resolved mana so a 4am reset applies on entry.
     setGameState((prev) => ({ ...prev, mana: resolvedMana }));
-    setPendingAbility(abilityId);
+    // Snapshot pre-lesson state so a 5-gem retry can fully revert it. Cards are
+    // filled in when the lesson completes.
+    setTurnPhase({
+      kind: 'lesson',
+      abilityId,
+      snapshot: {
+        hp: gameState.hp,
+        mana: resolvedMana,
+        dungeonState: gameState.dungeonState,
+        secondaryResources: resources,
+        cards: [],
+      },
+    });
     navigate('lesson');
   };
 
@@ -346,14 +348,12 @@ function App() {
     totalCount: number;
     cardSnapshot: Array<[string, import('./game/fsrs-scheduler').CardState | null]>;
   }) => {
-    if (!pendingAbility) return;
+    if (turnPhase.kind !== 'lesson') return;
     // First completed review session is the moment to ask for notification
     // permission (native only, once). Fire-and-forget; it never blocks the flow.
     void maybeRequestNotificationPermission();
-    const snapshotForRetry: RetrySnapshot | null = pendingSnapshot
-      ? { ...pendingSnapshot, cards: cardSnapshot }
-      : null;
-    resolveAbility(pendingAbility, { accuracy, correctCount, cardSnapshot, snapshotForRetry });
+    const snapshotForRetry: RetrySnapshot = { ...turnPhase.snapshot, cards: cardSnapshot };
+    resolveAbility(turnPhase.abilityId, { accuracy, correctCount, cardSnapshot, snapshotForRetry });
   };
 
   const resolveAbility = (
@@ -389,15 +389,14 @@ function App() {
 
     const performCommit = () => {
       setGameState((prev) => ({ ...prev, ...turn.nextState }));
-      setPendingAbility(null);
 
       // Defeat takes priority over a failed-lesson retry: the fight was lost, not
       // just the lesson. Surface the defeat screen; the player retreats to the
       // (now full-HP) monster.
       if (turn.playerDefeated) {
-        setPendingSnapshot(null);
         setPendingLoot(null);
         setShowDefeat(true);
+        setTurnPhase({ kind: 'idle' });
         return;
       }
 
@@ -408,11 +407,13 @@ function App() {
         !turn.monsterDefeated &&
         canRetry({ ledger: turn.nextState.gems, alreadyUsed: false, accuracy })
       ) {
-        setRetryPrompt({ snapshot: snapshotForRetry, abilityId: ability.id });
-        setPendingSnapshot(null);
+        setTurnPhase({
+          kind: 'retryOffered',
+          snapshot: snapshotForRetry,
+          abilityId: ability.id,
+        });
         return;
       }
-      setPendingSnapshot(null);
 
       if (turn.monsterDefeated && turn.monsterName) {
         setPendingLoot({
@@ -429,12 +430,14 @@ function App() {
         setPendingLoot(null);
         // Already on dungeon screen when animation case; harmless to re-navigate otherwise.
       }
+      setTurnPhase({ kind: 'idle' });
     };
 
-    if (turn.wantsAnimation) {
-      // Defer commit until Dungeon finishes playing the ability animation.
-      pendingCommitRef.current = performCommit;
-      setPendingAnimation(turn.animation);
+    if (turn.wantsAnimation && turn.animation) {
+      // Defer commit until Dungeon finishes playing the ability animation. The
+      // commit closure lives on the phase itself — handleAnimationComplete runs
+      // it when the animation finishes.
+      setTurnPhase({ kind: 'awaitingAnimation', animation: turn.animation, commit: performCommit });
       navigate('dungeon');
     } else {
       performCommit();
@@ -444,17 +447,16 @@ function App() {
   };
 
   const handleAnimationComplete = () => {
-    const commit = pendingCommitRef.current;
-    pendingCommitRef.current = null;
-    setPendingAnimation(null);
-    if (commit) commit();
+    if (turnPhase.kind !== 'awaitingAnimation') return;
+    // commit transitions the phase out of awaitingAnimation itself.
+    turnPhase.commit();
   };
 
   const handleRetryAccept = () => {
-    if (!retryPrompt) return;
+    if (turnPhase.kind !== 'retryOffered') return;
     const now = Date.now();
-    revertCardStore(retryPrompt.snapshot, cardStoreRef.current);
-    const reverted = applyRetry(retryPrompt.snapshot, gameState.gems ?? initialGemLedger(), now);
+    revertCardStore(turnPhase.snapshot, cardStoreRef.current);
+    const reverted = applyRetry(turnPhase.snapshot, gameState.gems ?? initialGemLedger(), now);
     setGameState((prev) => ({
       ...prev,
       hp: reverted.hp,
@@ -463,13 +465,12 @@ function App() {
       secondaryResources: reverted.secondaryResources,
       gems: reverted.ledger,
     }));
-    setRetryPrompt(null);
-    setPendingAbility(null);
+    setTurnPhase({ kind: 'idle' });
     navigate('dungeon');
   };
 
   const handleRetryDecline = () => {
-    setRetryPrompt(null);
+    setTurnPhase({ kind: 'idle' });
     navigate('dungeon');
   };
 
@@ -484,10 +485,10 @@ function App() {
     navigate(wasCleared ? 'home' : 'dungeon');
   };
 
-  const lessonQuestionCount =
-    pendingAbility != null
-      ? (findAbilityById(pendingAbility)?.lessonQuestions ?? 5)
-      : undefined;
+  const lessonForTurn = turnPhase.kind === 'lesson' ? turnPhase : null;
+  const lessonQuestionCount = lessonForTurn
+    ? (findAbilityById(lessonForTurn.abilityId)?.lessonQuestions ?? 5)
+    : undefined;
 
   // Web renders inside a fixed phone frame; native fills the device edge-to-edge
   // with safe-area insets (handled in `frameStyle` below).
@@ -671,7 +672,9 @@ function App() {
                     {...screenProps}
                     onAbilityChosen={handleAbilityChosen}
                     debugMode={tweaks.debugMode}
-                    pendingAnimation={pendingAnimation}
+                    pendingAnimation={
+                      turnPhase.kind === 'awaitingAnimation' ? turnPhase.animation : null
+                    }
                     onAnimationComplete={handleAnimationComplete}
                   />
                 )}
@@ -680,9 +683,9 @@ function App() {
                     {...screenProps}
                     cardStore={cardStoreRef.current}
                     questionCount={lessonQuestionCount}
-                    onComplete={pendingAbility ? handleLessonComplete : undefined}
-                    completeDestination={pendingAbility ? 'dungeon' : 'home'}
-                    completeLabel={pendingAbility ? '⚔ BACK TO DUNGEON' : '🏠 HOME'}
+                    onComplete={lessonForTurn ? handleLessonComplete : undefined}
+                    completeDestination={lessonForTurn ? 'dungeon' : 'home'}
+                    completeLabel={lessonForTurn ? '⚔ BACK TO DUNGEON' : '🏠 HOME'}
                   />
                 )}
                 {screen === 'loot' && (
@@ -701,7 +704,7 @@ function App() {
               {screen !== 'lesson' && <NavBar screen={screen} setScreen={navigate} />}
             </>
           )}
-          {retryPrompt && (
+          {turnPhase.kind === 'retryOffered' && (
             <RetryModal
               gemBalance={gameState.gems?.balance ?? 0}
               onAccept={handleRetryAccept}
