@@ -171,8 +171,6 @@ const Loot: React.FC<LootProps> = ({ reward, onContinue, setScreen }) => {
               }}
             >
               +10 MAX HP
-              <br />
-              FULLY HEALED
             </div>
           </div>
         </div>
@@ -224,7 +222,7 @@ const Loot: React.FC<LootProps> = ({ reward, onContinue, setScreen }) => {
               marginTop: 6,
             }}
           >
-            +10 MAX HP · FULL HEAL
+            +10 MAX HP
           </div>
         </PixelPanel>
       )}

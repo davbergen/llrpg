@@ -149,12 +149,13 @@ describe('resolveTurn', () => {
     expect(turn.nextState.secondaryResources).toEqual(emptySecondaryResources());
   });
 
-  it('level-up restores full HP, saving an otherwise-fragile player', () => {
-    // xp 60 + a 50-XP kill crosses the level-1 threshold (100) → level 2, full heal.
+  it('level-up adds +10 maxHp and grants +10 current HP (not a full heal)', () => {
+    // xp 60 + a 50-XP kill crosses the level-1 threshold (100) → level 2.
+    // Kill turn has no counter, so HP only moves by the maxHp delta.
     const turn = resolveTurn({
       ability: mageSpark,
       lessonAccuracy: 1,
-      gameState: stateAt(0, 1, { hp: 1, maxHp: 100, xp: 60, level: 1, maxXp: 100 }),
+      gameState: stateAt(0, 1, { hp: 30, maxHp: 100, xp: 60, level: 1, maxXp: 100 }),
       hero: HERO,
       now: NOW,
       debugMode: false,
@@ -166,7 +167,24 @@ describe('resolveTurn', () => {
     expect(turn.leveledUp).toBe(true);
     expect(turn.newLevel).toBe(2);
     expect(turn.playerDefeated).toBe(false);
-    // Level-up adds +10 maxHp and restores to full.
+    expect(turn.nextState.maxHp).toBe(110);
+    // +10 max HP delta applied to current HP, clamped to new max — not a full refill.
+    expect(turn.nextState.hp).toBe(40);
+  });
+
+  it('level-up clamps current HP to the new max when already near full', () => {
+    const turn = resolveTurn({
+      ability: mageSpark,
+      lessonAccuracy: 1,
+      gameState: stateAt(0, 1, { hp: 100, maxHp: 100, xp: 60, level: 1, maxXp: 100 }),
+      hero: HERO,
+      now: NOW,
+      debugMode: false,
+      rollLoot,
+      rollGold,
+    });
+
+    expect(turn.leveledUp).toBe(true);
     expect(turn.nextState.maxHp).toBe(110);
     expect(turn.nextState.hp).toBe(110);
   });
