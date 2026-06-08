@@ -140,11 +140,14 @@ export function resolveTurn(input: ResolveTurnInput): TurnResult {
     selfHeal: result.selfHeal,
     maxHp: nextMaxHp,
   });
-  // Leveling up restores HP, so a level-up earned this turn saves you from an
-  // otherwise-lethal counter.
-  const playerDefeated = !progress.leveledUp && hpOutcome.defeated;
-  // Defeat cost (B1/#79): retreat to the current monster, fully healed.
-  const nextHp = progress.leveledUp || playerDefeated ? nextMaxHp : hpOutcome.hp;
+  const playerDefeated = hpOutcome.defeated;
+  // Level-up grants +maxHpDelta to current HP (clamped to new max), not a full
+  // refill. Defeat cost (B1/#79): retreat to the current monster, fully healed.
+  const nextHp = playerDefeated
+    ? nextMaxHp
+    : progress.leveledUp
+      ? Math.min(hpOutcome.hp + progress.maxHpDelta, nextMaxHp)
+      : hpOutcome.hp;
 
   const activeId = gameState.dungeonState.activeDungeonId;
   const resourcesAfterRun =
