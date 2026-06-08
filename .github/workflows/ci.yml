@@ -1,0 +1,23 @@
+name: CI
+
+# Runs the same gate the work-work loop runs locally (lint + test + build).
+# This is the *required* status check that GitHub auto-merge waits on: the loop
+# arms `gh pr merge --auto` at PR-open time, and the PR only lands once this passes.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
