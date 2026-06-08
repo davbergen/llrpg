@@ -1,0 +1,11 @@
+# Counter mitigation must span turns — the Stance
+
+The monster's Counter is a fixed hit applied once per combat turn regardless of which ability was used (see CONTEXT.md). Iron Stance and Divine Shield were *standalone defensive turns*: zero damage, reducing or blocking only **that turn's** Counter. Playtesting (2026-06-08, issue #4) found them near-useless. Because every turn still costs one Counter, a zero-damage turn merely defers the Counter to next turn while *lengthening* the fight — so you end up eating as many or more Counters overall. The mitigation never paid for the turn it consumed.
+
+The abilities that bundle counter-reduction **onto a damaging hit** (Frostbolt, Cleave, Chain Lightning) never had this problem — they progress and mitigate at once. The lesson: same-turn mitigation only earns its turn when it rides on damage; standalone mitigation only earns its turn when it spans several.
+
+We rejected two alternatives: (a) converting the defensive abilities into damage+mitigation hybrids — this duplicated the on-hit-mitigation abilities and erased the defensive archetype; (b) leaving a one-turn "panic block" — thin, easy to misplay, and still a deferred Counter.
+
+Instead we introduced the **Stance**: a wind-up turn (zero damage, full Counter taken to enter) that reduces the Counter on the following turns. Iron Stance and Divine Shield are both Stances. The cast turn is unprotected — that full Counter is the opportunity cost — and the next 2 turns are reduced, with the fraction tuned down from the old same-turn values so two protected turns net out positive without trivializing fights. Recasting refreshes the duration. This requires persistent state on `DungeonState` carried across turns, mirroring `pendingDamageMultiplier`, rather than reading reduction off the current ability alone.
+
+A future reader will see counter-reduction persisting across turns and zero-damage abilities that look strictly worse than an attack, and may try to "fix" them back into same-turn effects. Do not — the multi-turn span is the entire point. Re-tune the fraction and duration within this model, but do not collapse a Stance back to a single turn without revisiting this decision.

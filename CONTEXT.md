@@ -24,6 +24,14 @@ _Avoid_: card due, SRS item
 The monster's fixed retaliation hit, applied once per combat turn regardless of which ability was used. The lever that makes turn-count matter.
 _Avoid_: counterattack damage, retaliation
 
+**Stance**:
+A multi-turn defensive buff: a wind-up turn (zero damage, full Counter taken) enters the Stance, which then reduces the Counter on the following turns. Because every turn costs one Counter, mitigation only earns its turn when it spans several — a Stance does, a same-turn block does not.
+_Avoid_: shield, guard, block (as the name of the multi-turn buff)
+
+**On-hit mitigation**:
+Counter reduction bundled onto a damaging ability, applying only to that turn's Counter. Always worth it — you progress and mitigate at once — so it never needs the Stance treatment.
+_Avoid_: counter reduction (unqualified — say "Stance" or "on-hit mitigation")
+
 **Burst ability**:
 A high-MP ability: fewer casts per day, but kills in fewer turns so you eat fewer Counters. Convenience and HP-safety at an MP premium.
 
